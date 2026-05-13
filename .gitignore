@@ -46,6 +46,9 @@ playwright-report/
 test-results/
 .playwright/
 
+# --- Scraper artefacts ---
+scraper/recon_artefacts/
+
 # --- IDE ---
 .idea/
 .vscode/

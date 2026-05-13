@@ -1,0 +1,148 @@
+"""OLX.ua parser.
+
+Strategy: OLX server-renders pages with an embedded JSON state blob
+(`window.__PRERENDERED_STATE__`). We extract that JSON and parse listings
+from it — no fragile HTML/CSS selectors. Confirmed via recon on
+https://www.olx.ua/uk/nedvizhimost/kvartiry/kiev/ (see scraper/recon.py).
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import datetime
+from decimal import Decimal
+from typing import Any
+
+import requests
+from pydantic import ValidationError
+
+from scraper.http import build_session, fetch
+from scraper.models import Listing, ListingParam, Location, Price, Source
+
+_STATE_MARKER = "window.__PRERENDERED_STATE__="
+
+
+class OlxParseError(Exception):
+    """Raised when OLX page structure does not match our assumptions."""
+
+
+def fetch_search_page(url: str, session: requests.Session | None = None) -> str:
+    session = session or build_session()
+    response = fetch(session, url)
+    return response.text
+
+
+def extract_state(html: str) -> dict[str, Any]:
+    """Return the decoded `__PRERENDERED_STATE__` JSON object."""
+    start = html.find(_STATE_MARKER)
+    if start < 0:
+        raise OlxParseError("PRERENDERED_STATE marker not found")
+    cursor = start + len(_STATE_MARKER)
+    while cursor < len(html) and html[cursor].isspace():
+        cursor += 1
+    decoder = json.JSONDecoder()
+    first_value, _ = decoder.raw_decode(html, cursor)
+    if isinstance(first_value, str):
+        first_value = json.loads(first_value)
+    if not isinstance(first_value, dict):
+        raise OlxParseError(f"unexpected state type: {type(first_value).__name__}")
+    return first_value
+
+
+def _ads_from_state(state: dict[str, Any]) -> list[dict[str, Any]]:
+    try:
+        ads = state["listing"]["listing"]["ads"]
+    except KeyError as exc:
+        raise OlxParseError(f"missing key in state: {exc}") from exc
+    if not isinstance(ads, list):
+        raise OlxParseError(f"ads is not a list: {type(ads).__name__}")
+    return ads
+
+
+def _parse_price(raw: dict[str, Any]) -> Price:
+    is_free = bool(raw.get("free"))
+    regular = raw.get("regularPrice") or {}
+    value = regular.get("value")
+    return Price(
+        value=Decimal(str(value)) if value is not None else None,
+        currency=regular.get("currencyCode"),
+        negotiable=bool(regular.get("negotiable", False)),
+        is_free=is_free,
+    )
+
+
+def _parse_location(raw_loc: dict[str, Any], raw_map: dict[str, Any] | None) -> Location:
+    raw_map = raw_map or {}
+    return Location(
+        region=raw_loc.get("regionName"),
+        region_id=raw_loc.get("regionId"),
+        city=raw_loc.get("cityName"),
+        city_id=raw_loc.get("cityId"),
+        district=raw_loc.get("districtName"),
+        district_id=raw_loc.get("districtId"),
+        latitude=raw_map.get("lat"),
+        longitude=raw_map.get("lon"),
+    )
+
+
+def _parse_params(raw_params: list[dict[str, Any]]) -> list[ListingParam]:
+    result: list[ListingParam] = []
+    for p in raw_params:
+        key = p.get("key")
+        name = p.get("name")
+        value = p.get("value")
+        if not key or not name or value is None:
+            continue
+        result.append(
+            ListingParam(
+                key=str(key),
+                name=str(name),
+                value=str(value),
+                normalized_value=p.get("normalizedValue"),
+            )
+        )
+    return result
+
+
+def _parse_dt(raw: str | None) -> datetime | None:
+    if not raw:
+        return None
+    return datetime.fromisoformat(raw)
+
+
+def parse_ad(raw: dict[str, Any]) -> Listing:
+    """Build a `Listing` from one raw ad dict.
+
+    Raises `pydantic.ValidationError` if mandatory fields are missing or wrong.
+    """
+    return Listing(
+        source=Source.OLX,
+        source_id=str(raw["id"]),
+        url=raw["url"],
+        title=raw["title"],
+        description=raw.get("description"),
+        price=_parse_price(raw.get("price") or {}),
+        location=_parse_location(raw.get("location") or {}, raw.get("map")),
+        params=_parse_params(raw.get("params") or []),
+        photos=[p for p in (raw.get("photos") or []) if isinstance(p, str)],
+        category_id=(raw.get("category") or {}).get("id"),
+        is_business=bool(raw.get("isBusiness", False)),
+        is_promoted=bool(raw.get("isPromoted", False)),
+        created_at=_parse_dt(raw.get("createdTime")),
+        refreshed_at=_parse_dt(raw.get("lastRefreshTime")),
+        valid_to=_parse_dt(raw.get("validToTime")),
+    )
+
+
+def parse_search_page(html: str) -> list[Listing]:
+    """Extract all listings from a search-results page's HTML."""
+    state = extract_state(html)
+    ads = _ads_from_state(state)
+    listings: list[Listing] = []
+    for raw in ads:
+        try:
+            listings.append(parse_ad(raw))
+        except (ValidationError, KeyError, TypeError, ValueError) as exc:
+            ad_id = raw.get("id") if isinstance(raw, dict) else "?"
+            print(f"[olx] skipped ad {ad_id}: {exc}")
+    return listings
