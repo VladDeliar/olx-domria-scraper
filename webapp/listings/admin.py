@@ -23,11 +23,20 @@ class ListingAdmin(admin.ModelAdmin):
         "city",
         "district",
         "is_promoted",
+        "enriched_at",
         "last_seen_at",
     )
-    list_filter = ("source", "city", "district", "price_currency", "is_promoted", "is_business")
+    list_filter = (
+        "source",
+        "city",
+        "district",
+        "price_currency",
+        "is_promoted",
+        "is_business",
+        ("enriched_at", admin.EmptyFieldListFilter),
+    )
     search_fields = ("source_id", "title", "description", "district", "city")
-    readonly_fields = ("first_seen_at", "last_seen_at", "open_link")
+    readonly_fields = ("first_seen_at", "last_seen_at", "enriched_at", "open_link")
     inlines = [ListingParamInline]
     list_per_page = 50
     date_hierarchy = "last_seen_at"

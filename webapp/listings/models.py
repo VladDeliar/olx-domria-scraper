@@ -49,6 +49,10 @@ class Listing(models.Model):
     first_seen_at = models.DateTimeField(auto_now_add=True)
     last_seen_at = models.DateTimeField(auto_now=True)
 
+    # Detail-page enrichment (filled by `manage.py enrich`, source-specific shape)
+    extras = models.JSONField(default=dict, blank=True)
+    enriched_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["source", "source_id"], name="uniq_source_id"),
