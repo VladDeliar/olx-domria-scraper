@@ -12,6 +12,7 @@ import json
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from collections.abc import Iterator
 
@@ -25,6 +26,7 @@ from scraper.pagination import page_url
 _STATE_MARKER = "window.__INITIAL_STATE__="
 _SITE_ORIGIN = "https://dom.ria.com"
 _CDN_ORIGIN = "https://cdn.riastatic.com/photos"
+_KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
 _CURRENCY_MAP = {
     "$": "USD",
@@ -153,7 +155,7 @@ def _parse_dt(raw: str | None) -> datetime | None:
     if not raw:
         return None
     try:
-        return datetime.fromisoformat(raw)
+        return datetime.fromisoformat(raw).replace(tzinfo=_KYIV_TZ)
     except ValueError:
         return None
 
