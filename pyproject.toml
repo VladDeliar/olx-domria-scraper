@@ -1,0 +1,84 @@
+[project]
+name = "realestate-radar"
+version = "0.1.0"
+description = "Real-estate listings scraper, Django UI, and Telegram bot."
+requires-python = ">=3.11"
+readme = "README.md"
+dependencies = [
+    # --- Scraping ---
+    "requests>=2.32",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.3",
+    "playwright>=1.49",
+    "fake-useragent>=1.5",
+    "tenacity>=9.0",
+    # --- Validation / config ---
+    "pydantic>=2.9",
+    "python-decouple>=3.8",
+    # --- Web ---
+    "django>=5.1,<5.2",
+    "djangorestframework>=3.15",
+    "django-filter>=24.3",
+    "psycopg[binary]>=3.2",
+    "gunicorn>=23.0",
+    # --- Bot ---
+    "aiogram>=3.15",
+    # --- Scheduling ---
+    "celery[redis]>=5.4",
+    "django-celery-beat>=2.7",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "pytest-asyncio>=0.24",
+    "responses>=0.25",
+    "django-stubs>=5.1",
+    "djangorestframework-stubs>=3.15",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific
+    "DJ",  # flake8-django
+]
+ignore = [
+    "E501",  # line too long (formatter handles it)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/*.py" = ["E", "F", "I", "UP"]
+"**/tests/**/*.py" = ["B011"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["mypy_django_plugin.main"]
+exclude = ["migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["fake_useragent.*", "celery.*", "django_celery_beat.*"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py", "*_test.py"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers"
