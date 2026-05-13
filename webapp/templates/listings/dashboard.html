@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Дашборд · RealEstate Radar{% endblock %}
+{% block content %}
+<h4 class="mb-4">📊 Дашборд</h4>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card text-center p-3"><div class="text-muted small">Всього оголошень</div><div class="fs-3">{{ total }}</div></div></div>
+    {% for row in by_source %}
+        <div class="col-md-3">
+            <div class="card text-center p-3">
+                <div class="text-muted small">{{ row.source|upper }}</div>
+                <div class="fs-3">{{ row.n }}</div>
+            </div>
+        </div>
+    {% endfor %}
+    <div class="col-md-3"><div class="card text-center p-3"><div class="text-muted small">Активних підписок</div><div class="fs-3">{{ active_subscriptions }}</div></div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">Топ районів</div>
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Район</th><th class="text-end">Кількість</th><th class="text-end">Сер. UAH</th><th class="text-end">Сер. USD</th></tr></thead>
+                <tbody>
+                {% for row in by_district %}
+                    <tr>
+                        <td>{{ row.district }}</td>
+                        <td class="text-end">{{ row.n }}</td>
+                        <td class="text-end">{{ row.avg_uah|floatformat:0|default:"—" }}</td>
+                        <td class="text-end">{{ row.avg_usd|floatformat:0|default:"—" }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">Останні скрап-запуски</div>
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Запуск</th><th>Статус</th><th class="text-end">Нові</th><th class="text-end">Updated</th></tr></thead>
+                <tbody>
+                {% for run in recent_runs %}
+                    <tr>
+                        <td>{{ run.source }} · {{ run.started_at|date:"d.m H:i" }}</td>
+                        <td><span class="badge bg-{% if run.status == 'success' %}success{% elif run.status == 'failed' %}danger{% else %}secondary{% endif %}">{{ run.status }}</span></td>
+                        <td class="text-end">{{ run.new_count }}</td>
+                        <td class="text-end">{{ run.updated_count }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

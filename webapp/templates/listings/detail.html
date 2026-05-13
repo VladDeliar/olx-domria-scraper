@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ listing.title|truncatechars:50 }}{% endblock %}
+{% block content %}
+<a href="{% url 'listings:list' %}" class="text-decoration-none small">← до списку</a>
+
+<div class="row g-4 mt-1">
+    <div class="col-lg-7">
+        {% if listing.photos %}
+            <div id="gallery" class="carousel slide" data-bs-ride="false">
+                <div class="carousel-inner rounded shadow-sm">
+                    {% for url in listing.photos %}
+                        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                            <img src="{{ url }}" class="d-block w-100" style="max-height:480px;object-fit:cover" alt="">
+                        </div>
+                    {% endfor %}
+                </div>
+                {% if listing.photos|length > 1 %}
+                    <button class="carousel-control-prev" type="button" data-bs-target="#gallery" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon"></span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#gallery" data-bs-slide="next">
+                        <span class="carousel-control-next-icon"></span>
+                    </button>
+                {% endif %}
+            </div>
+            <small class="text-muted">Фото: {{ listing.photos|length }}</small>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-5">
+        <span class="badge {% if listing.source == 'olx' %}badge-source-olx{% else %}badge-source-domria{% endif %} mb-2">
+            {{ listing.get_source_display }} · #{{ listing.source_id }}
+        </span>
+        <h4>{{ listing.title }}</h4>
+
+        <div class="my-3 fs-4 price">
+            {% if listing.price_is_free %}безкоштовно
+            {% elif listing.price_value %}{{ listing.price_value|floatformat:0 }} {{ listing.price_currency }}
+            {% else %}ціна не вказана{% endif %}
+        </div>
+
+        <ul class="list-unstyled small text-muted mb-3">
+            {% if listing.city %}<li>📍 {{ listing.city }}{% if listing.district %} · {{ listing.district }}{% endif %}</li>{% endif %}
+            {% if listing.is_business %}<li>🏢 від агенції</li>{% endif %}
+            {% if listing.is_promoted %}<li>⭐ просунуте</li>{% endif %}
+            <li>🕐 показано {{ listing.last_seen_at|date:"d.m.Y H:i" }}</li>
+            {% if listing.created_at_source %}<li>📅 опубліковано {{ listing.created_at_source|date:"d.m.Y" }}</li>{% endif %}
+        </ul>
+
+        <a href="{{ listing.url }}" target="_blank" rel="noopener" class="btn btn-primary">Відкрити на {{ listing.get_source_display }} ↗</a>
+
+        {% if listing.params.all %}
+            <h6 class="mt-4">Характеристики</h6>
+            <table class="table table-sm table-striped">
+                {% for p in listing.params.all %}
+                <tr><td class="text-muted">{{ p.name }}</td><td>{{ p.value }}</td></tr>
+                {% endfor %}
+            </table>
+        {% endif %}
+    </div>
+</div>
+
+{% if listing.description or listing.extras.description_full %}
+<section class="mt-4">
+    <h5>Опис</h5>
+    <div class="bg-white p-3 rounded shadow-sm" style="white-space:pre-line">{{ listing.extras.description_full|default:listing.description }}</div>
+</section>
+{% endif %}
+{% endblock %}
