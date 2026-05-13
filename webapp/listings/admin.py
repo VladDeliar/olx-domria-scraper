@@ -3,7 +3,14 @@ from __future__ import annotations
 from django.contrib import admin
 from django.utils.html import format_html
 
-from listings.models import Listing, ListingParam, ScrapeRun
+from listings.models import (
+    Listing,
+    ListingParam,
+    Notification,
+    ScrapeRun,
+    Subscription,
+    TelegramUser,
+)
 
 
 class ListingParamInline(admin.TabularInline):
@@ -56,6 +63,43 @@ class ListingAdmin(admin.ModelAdmin):
     @admin.display(description="Open on source")
     def open_link(self, obj: Listing) -> str:
         return format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', obj.url, obj.url)
+
+
+@admin.register(TelegramUser)
+class TelegramUserAdmin(admin.ModelAdmin):
+    list_display = ("tg_user_id", "username", "first_name", "is_active", "registered_at")
+    list_filter = ("is_active",)
+    search_fields = ("tg_user_id", "username", "first_name")
+    readonly_fields = ("registered_at", "last_active_at")
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "source",
+        "district",
+        "city",
+        "min_price",
+        "max_price",
+        "currency",
+        "min_rooms",
+        "max_rooms",
+        "is_active",
+        "created_at",
+    )
+    list_filter = ("is_active", "source", "currency")
+    search_fields = ("user__username", "user__tg_user_id", "district", "city")
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "listing", "sent_at")
+    list_filter = ("sent_at",)
+    search_fields = ("user__username", "listing__source_id")
+    readonly_fields = ("sent_at",)
+    date_hierarchy = "sent_at"
 
 
 @admin.register(ScrapeRun)

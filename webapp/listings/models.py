@@ -85,6 +85,83 @@ class ListingParam(models.Model):
         return f"{self.key}={self.value}"
 
 
+class TelegramUser(models.Model):
+    """A user who started a chat with our bot."""
+
+    tg_user_id = models.BigIntegerField(unique=True)
+    username = models.CharField(max_length=64, blank=True, default="")
+    first_name = models.CharField(max_length=64, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    registered_at = models.DateTimeField(auto_now_add=True)
+    last_active_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-registered_at"]
+
+    def __str__(self) -> str:
+        tag = f"@{self.username}" if self.username else self.first_name
+        return f"{tag} ({self.tg_user_id})"
+
+
+class Subscription(models.Model):
+    """User-defined filter set; new listings matching it are pushed to Telegram."""
+
+    user = models.ForeignKey(
+        TelegramUser, on_delete=models.CASCADE, related_name="subscriptions"
+    )
+    source = models.CharField(max_length=16, choices=Source.choices, blank=True, default="")
+    city = models.CharField(max_length=100, blank=True, default="")
+    district = models.CharField(max_length=100, blank=True, default="")
+    min_price = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True
+    )
+    max_price = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True
+    )
+    currency = models.CharField(
+        max_length=8,
+        blank=True,
+        default="",
+        help_text="If price bounds are set, only listings in this currency match.",
+    )
+    min_rooms = models.IntegerField(null=True, blank=True)
+    max_rooms = models.IntegerField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["is_active", "user"])]
+
+    def __str__(self) -> str:
+        parts = []
+        if self.district:
+            parts.append(self.district)
+        if self.min_price or self.max_price:
+            lo = f"{self.min_price:.0f}" if self.min_price else ""
+            hi = f"{self.max_price:.0f}" if self.max_price else ""
+            parts.append(f"{lo}-{hi} {self.currency}".strip())
+        if self.min_rooms or self.max_rooms:
+            lo = self.min_rooms or ""
+            hi = self.max_rooms or ""
+            parts.append(f"{lo}-{hi}к")
+        return " | ".join(parts) or "any"
+
+
+class Notification(models.Model):
+    """One sent notification — prevents pinging the same user about the same listing twice."""
+
+    user = models.ForeignKey(TelegramUser, on_delete=models.CASCADE, related_name="notifications")
+    listing = models.ForeignKey(
+        "Listing", on_delete=models.CASCADE, related_name="notifications"
+    )
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("user", "listing")]
+        ordering = ["-sent_at"]
+
+
 class ScrapeRun(models.Model):
     """One execution of the scraper for observability."""
 

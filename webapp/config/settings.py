@@ -116,3 +116,6 @@ STATIC_URL = "static/"
 STATIC_ROOT = PROJECT_ROOT / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --- Telegram ---
+TELEGRAM_BOT_TOKEN = config("TELEGRAM_BOT_TOKEN", default="")

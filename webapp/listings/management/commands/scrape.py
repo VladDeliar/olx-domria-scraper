@@ -13,6 +13,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError
 from django.utils import timezone
 
+from bot.notifier import notify_new_listing
 from listings.models import ScrapeRun
 from listings.pipelines import save_listing
 from scraper.sources import domria, olx
@@ -43,14 +44,20 @@ class Command(BaseCommand):
             self.style.NOTICE(f"[run {run.id}] {source_name} {url} pages={pages}")
         )
 
-        scraped = new = updated = errors = 0
+        scraped = new = updated = errors = notified = 0
         try:
             for listing in source.iter_listings(url, max_pages=pages):
                 try:
-                    _obj, created = save_listing(listing)
+                    orm_obj, created = save_listing(listing)
                     scraped += 1
                     if created:
                         new += 1
+                        try:
+                            notified += notify_new_listing(orm_obj)
+                        except (DatabaseError, OSError) as exc:
+                            self.stderr.write(
+                                f"[run {run.id}] notify failed for {orm_obj.source_id}: {exc}"
+                            )
                     else:
                         updated += 1
                 except (DatabaseError, ValueError, TypeError) as exc:
@@ -79,6 +86,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"[run {run.id}] done: scraped={scraped} new={new} updated={updated} errors={errors}"
+                f"[run {run.id}] done: scraped={scraped} new={new} "
+                f"updated={updated} errors={errors} notified={notified}"
             )
         )
