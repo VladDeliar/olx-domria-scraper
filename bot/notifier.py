@@ -16,6 +16,7 @@ from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
+from asgiref.sync import sync_to_async
 from django.conf import settings
 
 from bot.formatting import render_listing
@@ -29,8 +30,12 @@ def _matches(listing: Listing, sub: Subscription) -> bool:
         return False
     if sub.city and listing.city.lower() != sub.city.lower():
         return False
-    if sub.district and listing.district.lower() != sub.district.lower():
-        return False
+    if sub.district:
+        # OLX puts smaller towns directly in `city` with empty `district`, so
+        # match the user-typed "district" against either field.
+        want = sub.district.lower()
+        if want not in (listing.district.lower(), listing.city.lower()):
+            return False
     if sub.min_price is not None or sub.max_price is not None:
         if listing.price_value is None:
             return False
@@ -42,9 +47,11 @@ def _matches(listing: Listing, sub: Subscription) -> bool:
             return False
     if sub.min_rooms is not None or sub.max_rooms is not None:
         rooms_param = listing.params.filter(key="number_of_rooms_string").first()
-        if not rooms_param or not isinstance(rooms_param.normalized_value, (int, float)):
+        if not rooms_param:
             return False
-        rooms = int(rooms_param.normalized_value)
+        rooms = _coerce_rooms(rooms_param.normalized_value)
+        if rooms is None:
+            return False
         if sub.min_rooms is not None and rooms < sub.min_rooms:
             return False
         if sub.max_rooms is not None and rooms > sub.max_rooms:
@@ -52,13 +59,51 @@ def _matches(listing: Listing, sub: Subscription) -> bool:
     return True
 
 
-def _candidate_subscriptions(listing: Listing) -> list[Subscription]:
-    """All active subscriptions, minus ones already notified for this listing."""
-    return list(
+# OLX historically stored rooms as category slugs (`'odnokomnatnye'` …) in
+# normalized_value before we added a coercion step in the parser. Listings
+# scraped pre-fix may still have the string form, so the matcher accepts both.
+_ROOMS_SLUG_FALLBACK: dict[str, int] = {
+    "odnokomnatnye": 1,
+    "dvuhkomnatnye": 2,
+    "trehkomnatnye": 3,
+    "chetyrehkomnatnye": 4,
+    "pyatikomnatnye": 5,
+    "shestikomnatnye": 6,
+}
+
+
+def _coerce_rooms(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, str):
+        if value.isdigit():
+            return int(value)
+        return _ROOMS_SLUG_FALLBACK.get(value)
+    return None
+
+
+def _gather_targets(listing: Listing) -> list[tuple[int, str, int, int]]:
+    """Sync: find subscriptions to notify. Returns list of (sub_id, text, user_pk, tg_user_id).
+
+    Doing all ORM work here (sync) lets the async caller wrap one call with
+    sync_to_async instead of N — and keeps `_matches` ORM access trivial.
+    """
+    subs = list(
         Subscription.objects.filter(is_active=True, user__is_active=True)
         .exclude(user__notifications__listing=listing)
         .select_related("user")
     )
+    matched = [s for s in subs if _matches(listing, s)]
+    if not matched:
+        return []
+    text = render_listing(listing)
+    return [(s.id, text, s.user.pk, s.user.tg_user_id) for s in matched]
+
+
+def _record_notification(user_pk: int, listing_pk: int) -> None:
+    Notification.objects.create(user_id=user_pk, listing_id=listing_pk)
 
 
 async def _send(bot: Bot, chat_id: int, text: str) -> bool:
@@ -71,23 +116,20 @@ async def _send(bot: Bot, chat_id: int, text: str) -> bool:
 
 
 async def _notify_async(listing: Listing) -> int:
-    subs = _candidate_subscriptions(listing)
-    if not subs:
+    targets = await sync_to_async(_gather_targets, thread_sensitive=True)(listing)
+    if not targets:
         return 0
-    matched = [s for s in subs if _matches(listing, s)]
-    if not matched:
-        return 0
-    text = render_listing(listing)
     bot = Bot(
         token=settings.TELEGRAM_BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     sent = 0
     try:
-        for sub in matched:
-            ok = await _send(bot, sub.user.tg_user_id, text)
-            if ok:
-                Notification.objects.create(user=sub.user, listing=listing)
+        for _sub_id, text, user_pk, tg_user_id in targets:
+            if await _send(bot, tg_user_id, text):
+                await sync_to_async(_record_notification, thread_sensitive=True)(
+                    user_pk, listing.pk
+                )
                 sent += 1
     finally:
         await bot.session.close()

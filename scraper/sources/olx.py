@@ -88,6 +88,27 @@ def _parse_location(raw_loc: dict[str, Any], raw_map: dict[str, Any] | None) -> 
     )
 
 
+_ROOMS_SLUG_TO_INT: dict[str, int] = {
+    "odnokomnatnye": 1,
+    "dvuhkomnatnye": 2,
+    "trehkomnatnye": 3,
+    "chetyrehkomnatnye": 4,
+    "pyatikomnatnye": 5,
+    "shestikomnatnye": 6,
+}
+
+
+def _normalize_param(key: str, raw_normalized: Any) -> Any:
+    """Coerce source-specific normalised values to portable types.
+
+    OLX gives `rooms` as a category slug like `'odnokomnatnye'`; we want an int
+    so downstream filters (subscription matching) can do numeric comparisons.
+    """
+    if key == "number_of_rooms_string" and isinstance(raw_normalized, str):
+        return _ROOMS_SLUG_TO_INT.get(raw_normalized, raw_normalized)
+    return raw_normalized
+
+
 def _parse_params(raw_params: list[dict[str, Any]]) -> list[ListingParam]:
     result: list[ListingParam] = []
     for p in raw_params:
@@ -101,7 +122,7 @@ def _parse_params(raw_params: list[dict[str, Any]]) -> list[ListingParam]:
                 key=str(key),
                 name=str(name),
                 value=str(value),
-                normalized_value=p.get("normalizedValue"),
+                normalized_value=_normalize_param(str(key), p.get("normalizedValue")),
             )
         )
     return result
