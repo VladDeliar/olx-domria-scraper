@@ -13,11 +13,14 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from collections.abc import Iterator
+
 import requests
 from pydantic import ValidationError
 
-from scraper.http import build_session, fetch
+from scraper.http import build_session, fetch, polite_sleep
 from scraper.models import Listing, ListingParam, Location, Price, Source
+from scraper.pagination import page_url
 
 _STATE_MARKER = "window.__INITIAL_STATE__="
 _SITE_ORIGIN = "https://dom.ria.com"
@@ -207,3 +210,27 @@ def parse_search_page(html: str) -> list[Listing]:
             ad_id = raw.get("realty_id") if isinstance(raw, dict) else "?"
             print(f"[domria] skipped ad {ad_id}: {exc}")
     return listings
+
+
+def iter_listings(base_url: str, max_pages: int = 1) -> Iterator[Listing]:
+    """Yield listings across paginated search results."""
+    session = build_session()
+    seen_ids: set[str] = set()
+    for page in range(1, max_pages + 1):
+        url = page_url(base_url, page)
+        print(f"[domria] page {page}: {url}")
+        html = fetch_search_page(url, session=session)
+        listings = parse_search_page(html)
+        if not listings:
+            print(f"[domria] page {page} empty — stopping")
+            break
+        new_in_page = 0
+        for listing in listings:
+            if listing.source_id in seen_ids:
+                continue
+            seen_ids.add(listing.source_id)
+            new_in_page += 1
+            yield listing
+        print(f"[domria] page {page}: +{new_in_page} new (total {len(seen_ids)})")
+        if page < max_pages:
+            polite_sleep()

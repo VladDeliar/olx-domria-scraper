@@ -48,6 +48,7 @@ test-results/
 
 # --- Scraper artefacts ---
 scraper/recon_artefacts/
+data/
 
 # --- IDE ---
 .idea/
