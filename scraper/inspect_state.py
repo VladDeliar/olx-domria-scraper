@@ -1,30 +1,30 @@
-"""Extract and inspect the embedded __PRERENDERED_STATE__ JSON from a saved OLX page.
+"""Extract and inspect an embedded JS state JSON blob from a saved HTML page.
 
 Run:
-    uv run python -m scraper.inspect_state
+    uv run python -m scraper.inspect_state                    # OLX (default)
+    uv run python -m scraper.inspect_state __INITIAL_STATE__   # Dom.ria
 """
 
 from __future__ import annotations
 
 import json
-import re
+import sys
 from pathlib import Path
 
 _HTML_FILE = Path("scraper/recon_artefacts/last_response.html")
-_OUT_JSON = Path("scraper/recon_artefacts/prerendered_state.json")
+_OUT_JSON = Path("scraper/recon_artefacts/state.json")
 
 
-def _find_json_blob(html: str) -> str:
-    """Locate __PRERENDERED_STATE__ assignment and return the decoded JSON text.
+def _find_json_blob(html: str, marker_name: str = "__PRERENDERED_STATE__") -> str:
+    """Locate `window.<marker_name>=` and return the JSON text after it.
 
-    OLX serialises the state as a JSON-encoded string literal followed by other
-    `window.__*` assignments. We use raw_decode to consume exactly the first JSON
-    value, then (if it was a string) parse its contents as JSON proper.
+    Some sites stringify the JSON (`"...escaped..."`); some inline it directly.
+    We use raw_decode to consume exactly the first JSON value.
     """
-    marker = "window.__PRERENDERED_STATE__="
+    marker = f"window.{marker_name}="
     start = html.find(marker)
     if start < 0:
-        raise ValueError("marker not found")
+        raise ValueError(f"marker {marker!r} not found")
     cursor = start + len(marker)
     while cursor < len(html) and html[cursor].isspace():
         cursor += 1
@@ -53,15 +53,17 @@ def _summarise(node: object, path: str = "", depth: int = 0, max_depth: int = 3)
         _summarise(node[0], f"{path}[0]", depth + 1, max_depth)
 
 
-def main() -> None:
+def main(argv: list[str]) -> int:
+    marker = argv[1] if len(argv) > 1 else "__PRERENDERED_STATE__"
     html = _HTML_FILE.read_text(encoding="utf-8")
-    raw = _find_json_blob(html)
+    raw = _find_json_blob(html, marker)
     data = json.loads(raw)
     _OUT_JSON.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Saved parsed state ({len(raw):,} chars) -> {_OUT_JSON}\n")
-    print("Top-level structure:")
+    print(f"Top-level structure (marker={marker}):")
     _summarise(data, max_depth=2)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main(sys.argv))

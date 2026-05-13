@@ -1,25 +1,37 @@
-"""Entry point: fetch one OLX search page and print parsed listings.
+"""Entry point: fetch one search page (OLX or Dom.ria) and print parsed listings.
 
-    uv run python -m scraper https://www.olx.ua/uk/nedvizhimost/kvartiry/kiev/
+    uv run python -m scraper olx    https://www.olx.ua/uk/nedvizhimost/kvartiry/kiev/
+    uv run python -m scraper domria https://dom.ria.com/uk/arenda-kvartir/kiev/
 """
 
 from __future__ import annotations
 
 import sys
+from typing import Protocol
 
-from scraper.sources.olx import fetch_search_page, parse_search_page
+from scraper.models import Listing
+from scraper.sources import domria, olx
+
+
+class _Source(Protocol):
+    def fetch_search_page(self, url: str) -> str: ...
+    def parse_search_page(self, html: str) -> list[Listing]: ...
+
+
+_SOURCES: dict[str, _Source] = {"olx": olx, "domria": domria}
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2:
-        print("usage: python -m scraper <olx-search-url>", file=sys.stderr)
+    if len(argv) != 3 or argv[1] not in _SOURCES:
+        print("usage: python -m scraper <olx|domria> <url>", file=sys.stderr)
         return 2
-    url = argv[1]
-    print(f"Fetching: {url}")
-    html = fetch_search_page(url)
+    source = _SOURCES[argv[1]]
+    url = argv[2]
+    print(f"Fetching ({argv[1]}): {url}")
+    html = source.fetch_search_page(url)
     print(f"  -> {len(html):,} bytes")
 
-    listings = parse_search_page(html)
+    listings = source.parse_search_page(html)
     print(f"Parsed: {len(listings)} listings\n")
 
     for ad in listings[:5]:
