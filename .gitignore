@@ -50,6 +50,9 @@ test-results/
 scraper/recon_artefacts/
 data/
 
+# --- Celery ---
+celerybeat-schedule*
+
 # --- IDE ---
 .idea/
 .vscode/

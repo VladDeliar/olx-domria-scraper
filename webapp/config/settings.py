@@ -128,3 +128,28 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- Telegram ---
 TELEGRAM_BOT_TOKEN = config("TELEGRAM_BOT_TOKEN", default="")
+
+# --- Celery ---
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://localhost:6379/1")
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = False
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # one scrape at a time per worker
+
+# Beat schedule: keys are arbitrary names, args = (source, url, pages).
+# Reasonable production cadence is 15–60 min — shorter risks rate-limiting.
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    "olx-kyiv-apartments-30min": {
+        "task": "listings.scrape",
+        "schedule": crontab(minute="*/30"),
+        "args": ("olx", "https://www.olx.ua/uk/nedvizhimost/kvartiry/kiev/", 1),
+    },
+    "domria-kyiv-rent-30min": {
+        "task": "listings.scrape",
+        "schedule": crontab(minute="*/30"),
+        "args": ("domria", "https://dom.ria.com/uk/arenda-kvartir/kiev/", 1),
+    },
+}

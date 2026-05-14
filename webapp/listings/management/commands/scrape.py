@@ -2,6 +2,9 @@
 
     python manage.py scrape olx    URL [--pages N]
     python manage.py scrape domria URL [--pages N]
+
+Thin wrapper around `listings.tasks.run_scrape` — the same code path Celery
+uses, so behaviour stays identical whether triggered manually or by Beat.
 """
 
 from __future__ import annotations
@@ -11,14 +14,8 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError
-from django.utils import timezone
 
-from bot.notifier import notify_new_listing
-from listings.models import ScrapeRun
-from listings.pipelines import save_listing
-from scraper.sources import domria, olx
-
-_SOURCES = {"olx": olx, "domria": domria}
+from listings.tasks import _SOURCES, run_scrape
 
 
 class Command(BaseCommand):
@@ -30,63 +27,15 @@ class Command(BaseCommand):
         parser.add_argument("--pages", type=int, default=1)
 
     def handle(self, *args: Any, **opts: Any) -> None:
-        source_name: str = opts["source"]
-        url: str = opts["url"]
-        pages: int = opts["pages"]
-        source = _SOURCES[source_name]
-
-        run = ScrapeRun.objects.create(
-            source=source_name,
-            url=url,
-            pages_requested=pages,
-        )
-        self.stdout.write(
-            self.style.NOTICE(f"[run {run.id}] {source_name} {url} pages={pages}")
-        )
-
-        scraped = new = updated = errors = notified = 0
         try:
-            for listing in source.iter_listings(url, max_pages=pages):
-                try:
-                    orm_obj, created = save_listing(listing)
-                    scraped += 1
-                    if created:
-                        new += 1
-                        try:
-                            notified += notify_new_listing(orm_obj)
-                        except (DatabaseError, OSError) as exc:
-                            self.stderr.write(
-                                f"[run {run.id}] notify failed for {orm_obj.source_id}: {exc}"
-                            )
-                    else:
-                        updated += 1
-                except (DatabaseError, ValueError, TypeError) as exc:
-                    errors += 1
-                    self.stderr.write(
-                        f"[run {run.id}] save failed for {listing.source_id}: {exc}"
-                    )
-        except (DatabaseError, OSError) as exc:
-            run.status = ScrapeRun.Status.FAILED
-            run.error_message = repr(exc)
-            run.finished_at = timezone.now()
-            run.scraped_count = scraped
-            run.new_count = new
-            run.updated_count = updated
-            run.error_count = errors
-            run.save()
-            raise CommandError(f"scrape failed: {exc}") from exc
-
-        run.status = ScrapeRun.Status.SUCCESS
-        run.finished_at = timezone.now()
-        run.scraped_count = scraped
-        run.new_count = new
-        run.updated_count = updated
-        run.error_count = errors
-        run.save()
-
+            result = run_scrape(opts["source"], opts["url"], opts["pages"])
+        except (DatabaseError, OSError, ValueError) as exc:
+            raise CommandError(str(exc)) from exc
         self.stdout.write(
             self.style.SUCCESS(
-                f"[run {run.id}] done: scraped={scraped} new={new} "
-                f"updated={updated} errors={errors} notified={notified}"
+                f"[run {result['run_id']}] {result['source']} done: "
+                f"scraped={result['scraped']} new={result['new']} "
+                f"updated={result['updated']} errors={result['errors']} "
+                f"notified={result['notified']}"
             )
         )
