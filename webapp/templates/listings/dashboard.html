@@ -4,24 +4,36 @@
 <h4 class="mb-4">📊 Дашборд</h4>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-3"><div class="card text-center p-3"><div class="text-muted small">Всього оголошень</div><div class="fs-3">{{ total }}</div></div></div>
+    <div class="col-md-2"><div class="card text-center p-3"><div class="text-muted small">Всього</div><div class="fs-3">{{ total }}</div></div></div>
     {% for row in by_source %}
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card text-center p-3">
                 <div class="text-muted small">{{ row.source|upper }}</div>
                 <div class="fs-3">{{ row.n }}</div>
             </div>
         </div>
     {% endfor %}
-    <div class="col-md-3"><div class="card text-center p-3"><div class="text-muted small">Активних підписок</div><div class="fs-3">{{ active_subscriptions }}</div></div></div>
+    <div class="col-md-2"><div class="card text-center p-3"><div class="text-muted small">Підписок</div><div class="fs-3">{{ active_subscriptions }}</div></div></div>
+    <div class="col-md-2">
+        <div class="card text-center p-3 {% if alert_counts.open %}border-warning{% endif %}">
+            <div class="text-muted small">Відкритих алертів</div>
+            <div class="fs-3 {% if alert_counts.open %}text-warning{% endif %}">{{ alert_counts.open }}</div>
+        </div>
+    </div>
+    <div class="col-md-2"><div class="card text-center p-3"><div class="text-muted small">Алертів за добу</div><div class="fs-3">{{ alert_counts.today }}</div></div></div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Scraped за 30 днів</div>
+    <div class="card-body"><canvas id="scrape-chart" height="80"></canvas></div>
 </div>
 
 <div class="row g-3">
-    <div class="col-md-7">
+    <div class="col-md-6">
         <div class="card">
             <div class="card-header">Топ районів</div>
             <table class="table table-sm mb-0">
-                <thead><tr><th>Район</th><th class="text-end">Кількість</th><th class="text-end">Сер. UAH</th><th class="text-end">Сер. USD</th></tr></thead>
+                <thead><tr><th>Район</th><th class="text-end">К-ть</th><th class="text-end">Сер. UAH</th><th class="text-end">Сер. USD</th></tr></thead>
                 <tbody>
                 {% for row in by_district %}
                     <tr>
@@ -36,18 +48,18 @@
         </div>
     </div>
 
-    <div class="col-md-5">
+    <div class="col-md-6">
         <div class="card">
-            <div class="card-header">Останні скрап-запуски</div>
+            <div class="card-header">Останні запуски</div>
             <table class="table table-sm mb-0">
-                <thead><tr><th>Запуск</th><th>Статус</th><th class="text-end">Нові</th><th class="text-end">Updated</th></tr></thead>
+                <thead><tr><th>Запуск</th><th>Статус</th><th class="text-end">Нові</th><th class="text-end">Помилки</th></tr></thead>
                 <tbody>
                 {% for run in recent_runs %}
                     <tr>
                         <td>{{ run.source }} · {{ run.started_at|date:"d.m H:i" }}</td>
                         <td><span class="badge bg-{% if run.status == 'success' %}success{% elif run.status == 'failed' %}danger{% else %}secondary{% endif %}">{{ run.status }}</span></td>
                         <td class="text-end">{{ run.new_count }}</td>
-                        <td class="text-end">{{ run.updated_count }}</td>
+                        <td class="text-end {% if run.error_count %}text-danger{% endif %}">{{ run.error_count }}</td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -55,4 +67,48 @@
         </div>
     </div>
 </div>
+
+{% if recent_alerts %}
+<div class="card mt-4">
+    <div class="card-header">🚨 Відкриті алерти</div>
+    <table class="table table-sm mb-0">
+        <thead><tr><th>Коли</th><th>Severity</th><th>Категорія</th><th>Повідомлення</th></tr></thead>
+        <tbody>
+        {% for a in recent_alerts %}
+            <tr>
+                <td><small>{{ a.created_at|date:"d.m H:i" }}</small></td>
+                <td>
+                    <span class="badge bg-{% if a.severity == 'error' %}danger{% elif a.severity == 'warn' %}warning text-dark{% else %}info{% endif %}">
+                        {{ a.get_severity_display }}
+                    </span>
+                </td>
+                <td><small>{{ a.get_category_display }}</small></td>
+                <td><small>{{ a.message }}</small></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+const data = {{ chart_data|safe }};
+const colors = ["#6f2da8", "#1e7c4d", "#0d6efd", "#dc3545"];
+data.datasets.forEach((ds, i) => {
+    ds.borderColor = colors[i % colors.length];
+    ds.backgroundColor = colors[i % colors.length] + "33";
+    ds.tension = 0.3;
+    ds.fill = true;
+});
+new Chart(document.getElementById("scrape-chart"), {
+    type: "line",
+    data: data,
+    options: {
+        responsive: true,
+        plugins: { legend: { position: "top" } },
+        scales: { y: { beginAtZero: true } },
+    },
+});
+</script>
 {% endblock %}

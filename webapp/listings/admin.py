@@ -7,6 +7,7 @@ from listings.models import (
     Listing,
     ListingParam,
     Notification,
+    ScrapeAlert,
     ScrapeRun,
     Subscription,
     TelegramUser,
@@ -100,6 +101,24 @@ class NotificationAdmin(admin.ModelAdmin):
     search_fields = ("user__username", "listing__source_id")
     readonly_fields = ("sent_at",)
     date_hierarchy = "sent_at"
+
+
+@admin.register(ScrapeAlert)
+class ScrapeAlertAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "severity", "category", "message_short", "run", "listing", "resolved")
+    list_filter = ("severity", "category", "resolved")
+    search_fields = ("message", "context")
+    readonly_fields = ("created_at",)
+    date_hierarchy = "created_at"
+    actions = ["mark_resolved"]
+
+    @admin.display(description="Message")
+    def message_short(self, obj: ScrapeAlert) -> str:
+        return obj.message[:80]
+
+    @admin.action(description="Mark selected as resolved")
+    def mark_resolved(self, request, qs) -> None:
+        qs.update(resolved=True)
 
 
 @admin.register(ScrapeRun)

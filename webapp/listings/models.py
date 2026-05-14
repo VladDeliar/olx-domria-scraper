@@ -162,6 +162,49 @@ class Notification(models.Model):
         ordering = ["-sent_at"]
 
 
+class ScrapeAlert(models.Model):
+    """A data-quality anomaly raised by run_scrape or anomaly checks.
+
+    `context` is a free-form JSON dict with numeric details (observed value,
+    threshold, sample size, etc.) so the admin can show *why* something tripped
+    without needing custom code per category.
+    """
+
+    class Severity(models.TextChoices):
+        INFO = "info", "Info"
+        WARN = "warn", "Warning"
+        ERROR = "error", "Error"
+
+    class Category(models.TextChoices):
+        PRICE_OUTLIER = "price_outlier", "Price outlier"
+        HIGH_ERROR_RATE = "high_error_rate", "High error rate"
+        PARSE_DROP = "parse_drop", "Parse-count drop"
+        EMPTY_PAGE = "empty_page", "Empty page"
+
+    severity = models.CharField(max_length=8, choices=Severity.choices, default=Severity.WARN)
+    category = models.CharField(max_length=24, choices=Category.choices)
+    message = models.CharField(max_length=300)
+    context = models.JSONField(default=dict, blank=True)
+    run = models.ForeignKey(
+        "ScrapeRun", null=True, blank=True, on_delete=models.SET_NULL, related_name="alerts"
+    )
+    listing = models.ForeignKey(
+        "Listing", null=True, blank=True, on_delete=models.SET_NULL, related_name="alerts"
+    )
+    resolved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["resolved", "-created_at"]),
+            models.Index(fields=["category", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"[{self.severity}] {self.category} — {self.message[:80]}"
+
+
 class ScrapeRun(models.Model):
     """One execution of the scraper for observability."""
 

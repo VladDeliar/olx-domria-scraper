@@ -10,6 +10,7 @@ from django.db import DatabaseError
 from django.utils import timezone
 
 from bot.notifier import notify_new_listing
+from listings.anomaly import check_listing, check_run
 from listings.models import ScrapeRun
 from listings.pipelines import save_listing
 from scraper.sources import domria, olx
@@ -47,6 +48,7 @@ def run_scrape(source_name: str, url: str, pages: int = 1) -> dict[str, Any]:
                         )
                 else:
                     updated += 1
+                check_listing(orm_obj)
             except (DatabaseError, ValueError, TypeError) as exc:
                 errors += 1
                 logger.warning("save failed for %s: %s", listing.source_id, exc)
@@ -68,6 +70,9 @@ def run_scrape(source_name: str, url: str, pages: int = 1) -> dict[str, Any]:
     run.updated_count = updated
     run.error_count = errors
     run.save()
+    alerts = list(check_run(run))
+    if alerts:
+        logger.warning("run #%s raised %d alerts", run.id, len(alerts))
 
     return {
         "run_id": run.id,
