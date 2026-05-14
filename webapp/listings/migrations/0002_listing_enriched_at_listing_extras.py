@@ -4,20 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('listings', '0001_initial'),
+        ("listings", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='listing',
-            name='enriched_at',
+            model_name="listing",
+            name="enriched_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='listing',
-            name='extras',
+            model_name="listing",
+            name="extras",
             field=models.JSONField(blank=True, default=dict),
         ),
     ]

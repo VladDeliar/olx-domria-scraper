@@ -105,7 +105,15 @@ class NotificationAdmin(admin.ModelAdmin):
 
 @admin.register(ScrapeAlert)
 class ScrapeAlertAdmin(admin.ModelAdmin):
-    list_display = ("created_at", "severity", "category", "message_short", "run", "listing", "resolved")
+    list_display = (
+        "created_at",
+        "severity",
+        "category",
+        "message_short",
+        "run",
+        "listing",
+        "resolved",
+    )
     list_filter = ("severity", "category", "resolved")
     search_fields = ("message", "context")
     readonly_fields = ("created_at",)

@@ -6,7 +6,6 @@ from aiogram import Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 from asgiref.sync import sync_to_async
-
 from listings.models import TelegramUser
 
 router = Router(name="start")

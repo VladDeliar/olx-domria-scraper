@@ -5,28 +5,75 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('listings', '0003_telegramuser_subscription_notification'),
+        ("listings", "0003_telegramuser_subscription_notification"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ScrapeAlert',
+            name="ScrapeAlert",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('severity', models.CharField(choices=[('info', 'Info'), ('warn', 'Warning'), ('error', 'Error')], default='warn', max_length=8)),
-                ('category', models.CharField(choices=[('price_outlier', 'Price outlier'), ('high_error_rate', 'High error rate'), ('parse_drop', 'Parse-count drop'), ('empty_page', 'Empty page')], max_length=24)),
-                ('message', models.CharField(max_length=300)),
-                ('context', models.JSONField(blank=True, default=dict)),
-                ('resolved', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('listing', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='alerts', to='listings.listing')),
-                ('run', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='alerts', to='listings.scraperun')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "severity",
+                    models.CharField(
+                        choices=[("info", "Info"), ("warn", "Warning"), ("error", "Error")],
+                        default="warn",
+                        max_length=8,
+                    ),
+                ),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("price_outlier", "Price outlier"),
+                            ("high_error_rate", "High error rate"),
+                            ("parse_drop", "Parse-count drop"),
+                            ("empty_page", "Empty page"),
+                        ],
+                        max_length=24,
+                    ),
+                ),
+                ("message", models.CharField(max_length=300)),
+                ("context", models.JSONField(blank=True, default=dict)),
+                ("resolved", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "listing",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="alerts",
+                        to="listings.listing",
+                    ),
+                ),
+                (
+                    "run",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="alerts",
+                        to="listings.scraperun",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['resolved', '-created_at'], name='listings_sc_resolve_d0832d_idx'), models.Index(fields=['category', '-created_at'], name='listings_sc_categor_dfdd80_idx')],
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["resolved", "-created_at"], name="listings_sc_resolve_d0832d_idx"
+                    ),
+                    models.Index(
+                        fields=["category", "-created_at"], name="listings_sc_categor_dfdd80_idx"
+                    ),
+                ],
             },
         ),
     ]

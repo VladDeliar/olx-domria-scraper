@@ -57,7 +57,11 @@ select = [
     "DJ",  # flake8-django
 ]
 ignore = [
-    "E501",  # line too long (formatter handles it)
+    "E501",   # line too long (formatter handles it)
+    "RUF001", # ambiguous-unicode-string — we write Ukrainian text intentionally
+    "RUF002", # same in docstrings
+    "RUF003", # same in comments
+    "RUF012", # mutable-class-default — Django Meta/ModelAdmin require these as lists
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -82,3 +86,5 @@ DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py"]
 asyncio_mode = "auto"
 addopts = "-ra --strict-markers"
+pythonpath = [".", "webapp"]
+testpaths = ["tests"]

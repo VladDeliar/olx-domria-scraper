@@ -18,9 +18,9 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from listings.models import Listing, Notification, Subscription
 
 from bot.formatting import render_listing
-from listings.models import Listing, Notification, Subscription
 
 logger = logging.getLogger(__name__)
 

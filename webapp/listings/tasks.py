@@ -29,9 +29,7 @@ def run_scrape(source_name: str, url: str, pages: int = 1) -> dict[str, Any]:
         raise ValueError(f"unknown source: {source_name!r}")
     source = _SOURCES[source_name]
 
-    run = ScrapeRun.objects.create(
-        source=source_name, url=url, pages_requested=pages
-    )
+    run = ScrapeRun.objects.create(source=source_name, url=url, pages_requested=pages)
     scraped = new = updated = errors = notified = 0
     try:
         for listing in source.iter_listings(url, max_pages=pages):
@@ -43,9 +41,7 @@ def run_scrape(source_name: str, url: str, pages: int = 1) -> dict[str, Any]:
                     try:
                         notified += notify_new_listing(orm_obj)
                     except (DatabaseError, OSError) as exc:
-                        logger.warning(
-                            "notify failed for %s: %s", orm_obj.source_id, exc
-                        )
+                        logger.warning("notify failed for %s: %s", orm_obj.source_id, exc)
                 else:
                     updated += 1
                 check_listing(orm_obj)

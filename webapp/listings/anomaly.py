@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import logging
 import statistics
+from collections.abc import Iterable
 from datetime import timedelta
 from decimal import Decimal
-from typing import Iterable
 
 from django.utils import timezone
 

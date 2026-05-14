@@ -9,9 +9,7 @@ from listings.models import Listing, Source
 
 
 class ListingFilter(django_filters.FilterSet):
-    source = django_filters.ChoiceFilter(
-        choices=Source.choices, empty_label="всі джерела"
-    )
+    source = django_filters.ChoiceFilter(choices=Source.choices, empty_label="всі джерела")
     city = django_filters.CharFilter(lookup_expr="icontains", label="Місто")
     district = django_filters.CharFilter(lookup_expr="icontains", label="Район")
     currency = django_filters.CharFilter(

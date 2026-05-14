@@ -106,18 +106,12 @@ class TelegramUser(models.Model):
 class Subscription(models.Model):
     """User-defined filter set; new listings matching it are pushed to Telegram."""
 
-    user = models.ForeignKey(
-        TelegramUser, on_delete=models.CASCADE, related_name="subscriptions"
-    )
+    user = models.ForeignKey(TelegramUser, on_delete=models.CASCADE, related_name="subscriptions")
     source = models.CharField(max_length=16, choices=Source.choices, blank=True, default="")
     city = models.CharField(max_length=100, blank=True, default="")
     district = models.CharField(max_length=100, blank=True, default="")
-    min_price = models.DecimalField(
-        max_digits=14, decimal_places=2, null=True, blank=True
-    )
-    max_price = models.DecimalField(
-        max_digits=14, decimal_places=2, null=True, blank=True
-    )
+    min_price = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    max_price = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     currency = models.CharField(
         max_length=8,
         blank=True,
@@ -152,14 +146,15 @@ class Notification(models.Model):
     """One sent notification — prevents pinging the same user about the same listing twice."""
 
     user = models.ForeignKey(TelegramUser, on_delete=models.CASCADE, related_name="notifications")
-    listing = models.ForeignKey(
-        "Listing", on_delete=models.CASCADE, related_name="notifications"
-    )
+    listing = models.ForeignKey("Listing", on_delete=models.CASCADE, related_name="notifications")
     sent_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = [("user", "listing")]
         ordering = ["-sent_at"]
+
+    def __str__(self) -> str:
+        return f"{self.user} -> {self.listing} @ {self.sent_at:%Y-%m-%d %H:%M}"
 
 
 class ScrapeAlert(models.Model):

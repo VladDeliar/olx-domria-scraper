@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import json
 from datetime import timedelta
+from typing import Any
 
 from django.db.models import Avg, Count, Q, Sum
 from django.db.models.functions import TruncDate
@@ -23,11 +22,7 @@ class ListingListView(ListView):
     paginate_by = 24
 
     def get_queryset(self):
-        qs = (
-            Listing.objects.all()
-            .prefetch_related("params")
-            .order_by("-last_seen_at")
-        )
+        qs = Listing.objects.all().prefetch_related("params").order_by("-last_seen_at")
         self.filter = ListingFilter(self.request.GET, queryset=qs)
         return self.filter.qs.distinct()
 

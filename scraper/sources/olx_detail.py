@@ -13,10 +13,12 @@ Extracted extras:
 
 from __future__ import annotations
 
+import contextlib
 from typing import Final, TypedDict
 
 from bs4 import BeautifulSoup
-from playwright.async_api import BrowserContext, TimeoutError as PlaywrightTimeout
+from playwright.async_api import BrowserContext
+from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 
 class OlxDetail(TypedDict):
@@ -65,7 +67,9 @@ async def fetch_detail(context: BrowserContext, url: str) -> OlxDetail:
     page = await context.new_page()
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=20_000)
-        try:
+        # Description hydrates after `networkidle` for below-the-fold content;
+        # if it doesn't appear in time, fall through to whatever rendered.
+        with contextlib.suppress(PlaywrightTimeout):
             await page.wait_for_function(
                 """() => {
                     const el = document.querySelector('[data-testid="ad_description"]');
@@ -73,9 +77,6 @@ async def fetch_detail(context: BrowserContext, url: str) -> OlxDetail:
                 }""",
                 timeout=10_000,
             )
-        except PlaywrightTimeout:
-            # Description didn't hydrate in time — return whatever rendered.
-            pass
         html = await page.content()
     finally:
         await page.close()

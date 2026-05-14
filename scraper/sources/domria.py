@@ -9,12 +9,11 @@ on https://dom.ria.com/uk/arenda-kvartir/kiev/.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
-
-from collections.abc import Iterator
 
 import requests
 from pydantic import ValidationError

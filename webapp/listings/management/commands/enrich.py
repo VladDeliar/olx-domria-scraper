@@ -41,8 +41,7 @@ async def _enrich_all(qs: list[Listing], cmd: BaseCommand) -> tuple[int, int]:
             desc_len = len(detail.get("description_full") or "")
             photos = len(detail.get("photos_full") or [])
             cmd.stdout.write(
-                f"  [{i}/{len(qs)}] #{listing.source_id}: "
-                f"desc={desc_len} chars, photos={photos}"
+                f"  [{i}/{len(qs)}] #{listing.source_id}: desc={desc_len} chars, photos={photos}"
             )
             if i < len(qs):
                 polite_sleep()
@@ -74,8 +73,6 @@ class Command(BaseCommand):
         if not qs:
             self.stdout.write(self.style.WARNING("nothing to enrich"))
             return
-        self.stdout.write(
-            self.style.NOTICE(f"enriching {len(qs)} listings via Playwright...")
-        )
+        self.stdout.write(self.style.NOTICE(f"enriching {len(qs)} listings via Playwright..."))
         ok, errors = asyncio.run(_enrich_all(qs, self))
         self.stdout.write(self.style.SUCCESS(f"done: ok={ok} errors={errors}"))

@@ -5,59 +5,120 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('listings', '0002_listing_enriched_at_listing_extras'),
+        ("listings", "0002_listing_enriched_at_listing_extras"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TelegramUser',
+            name="TelegramUser",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('tg_user_id', models.BigIntegerField(unique=True)),
-                ('username', models.CharField(blank=True, default='', max_length=64)),
-                ('first_name', models.CharField(blank=True, default='', max_length=64)),
-                ('is_active', models.BooleanField(default=True)),
-                ('registered_at', models.DateTimeField(auto_now_add=True)),
-                ('last_active_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("tg_user_id", models.BigIntegerField(unique=True)),
+                ("username", models.CharField(blank=True, default="", max_length=64)),
+                ("first_name", models.CharField(blank=True, default="", max_length=64)),
+                ("is_active", models.BooleanField(default=True)),
+                ("registered_at", models.DateTimeField(auto_now_add=True)),
+                ("last_active_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'ordering': ['-registered_at'],
+                "ordering": ["-registered_at"],
             },
         ),
         migrations.CreateModel(
-            name='Subscription',
+            name="Subscription",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('source', models.CharField(blank=True, choices=[('olx', 'OLX'), ('domria', 'Dom.ria')], default='', max_length=16)),
-                ('city', models.CharField(blank=True, default='', max_length=100)),
-                ('district', models.CharField(blank=True, default='', max_length=100)),
-                ('min_price', models.DecimalField(blank=True, decimal_places=2, max_digits=14, null=True)),
-                ('max_price', models.DecimalField(blank=True, decimal_places=2, max_digits=14, null=True)),
-                ('currency', models.CharField(blank=True, default='', help_text='If price bounds are set, only listings in this currency match.', max_length=8)),
-                ('min_rooms', models.IntegerField(blank=True, null=True)),
-                ('max_rooms', models.IntegerField(blank=True, null=True)),
-                ('is_active', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='subscriptions', to='listings.telegramuser')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "source",
+                    models.CharField(
+                        blank=True,
+                        choices=[("olx", "OLX"), ("domria", "Dom.ria")],
+                        default="",
+                        max_length=16,
+                    ),
+                ),
+                ("city", models.CharField(blank=True, default="", max_length=100)),
+                ("district", models.CharField(blank=True, default="", max_length=100)),
+                (
+                    "min_price",
+                    models.DecimalField(blank=True, decimal_places=2, max_digits=14, null=True),
+                ),
+                (
+                    "max_price",
+                    models.DecimalField(blank=True, decimal_places=2, max_digits=14, null=True),
+                ),
+                (
+                    "currency",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="If price bounds are set, only listings in this currency match.",
+                        max_length=8,
+                    ),
+                ),
+                ("min_rooms", models.IntegerField(blank=True, null=True)),
+                ("max_rooms", models.IntegerField(blank=True, null=True)),
+                ("is_active", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="subscriptions",
+                        to="listings.telegramuser",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['is_active', 'user'], name='listings_su_is_acti_f30999_idx')],
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["is_active", "user"], name="listings_su_is_acti_f30999_idx"
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='Notification',
+            name="Notification",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('sent_at', models.DateTimeField(auto_now_add=True)),
-                ('listing', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to='listings.listing')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to='listings.telegramuser')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("sent_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "listing",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="notifications",
+                        to="listings.listing",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="notifications",
+                        to="listings.telegramuser",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-sent_at'],
-                'unique_together': {('user', 'listing')},
+                "ordering": ["-sent_at"],
+                "unique_together": {("user", "listing")},
             },
         ),
     ]

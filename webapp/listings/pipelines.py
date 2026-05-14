@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from django.db import transaction
 
+from listings.models import Listing, ListingParam
+
 # Pydantic schema lives in the scraper package (added to sys.path in settings.py).
 from scraper.models import Listing as PydanticListing
-
-from listings.models import Listing, ListingParam
 
 
 @transaction.atomic

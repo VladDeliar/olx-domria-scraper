@@ -5,85 +5,146 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Listing',
+            name="Listing",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('source', models.CharField(choices=[('olx', 'OLX'), ('domria', 'Dom.ria')], max_length=16)),
-                ('source_id', models.CharField(help_text='Native ID on the source site.', max_length=64)),
-                ('url', models.URLField(max_length=500)),
-                ('title', models.CharField(max_length=500)),
-                ('description', models.TextField(blank=True, default='')),
-                ('price_value', models.DecimalField(blank=True, decimal_places=2, max_digits=14, null=True)),
-                ('price_currency', models.CharField(blank=True, default='', max_length=8)),
-                ('price_negotiable', models.BooleanField(default=False)),
-                ('price_is_free', models.BooleanField(default=False)),
-                ('region', models.CharField(blank=True, default='', max_length=100)),
-                ('region_id', models.IntegerField(blank=True, null=True)),
-                ('city', models.CharField(blank=True, default='', max_length=100)),
-                ('city_id', models.IntegerField(blank=True, null=True)),
-                ('district', models.CharField(blank=True, default='', max_length=100)),
-                ('district_id', models.IntegerField(blank=True, null=True)),
-                ('latitude', models.FloatField(blank=True, null=True)),
-                ('longitude', models.FloatField(blank=True, null=True)),
-                ('photos', models.JSONField(blank=True, default=list)),
-                ('category_id', models.IntegerField(blank=True, null=True)),
-                ('is_business', models.BooleanField(default=False)),
-                ('is_promoted', models.BooleanField(default=False)),
-                ('created_at_source', models.DateTimeField(blank=True, null=True)),
-                ('refreshed_at_source', models.DateTimeField(blank=True, null=True)),
-                ('valid_to_source', models.DateTimeField(blank=True, null=True)),
-                ('first_seen_at', models.DateTimeField(auto_now_add=True)),
-                ('last_seen_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "source",
+                    models.CharField(
+                        choices=[("olx", "OLX"), ("domria", "Dom.ria")], max_length=16
+                    ),
+                ),
+                (
+                    "source_id",
+                    models.CharField(help_text="Native ID on the source site.", max_length=64),
+                ),
+                ("url", models.URLField(max_length=500)),
+                ("title", models.CharField(max_length=500)),
+                ("description", models.TextField(blank=True, default="")),
+                (
+                    "price_value",
+                    models.DecimalField(blank=True, decimal_places=2, max_digits=14, null=True),
+                ),
+                ("price_currency", models.CharField(blank=True, default="", max_length=8)),
+                ("price_negotiable", models.BooleanField(default=False)),
+                ("price_is_free", models.BooleanField(default=False)),
+                ("region", models.CharField(blank=True, default="", max_length=100)),
+                ("region_id", models.IntegerField(blank=True, null=True)),
+                ("city", models.CharField(blank=True, default="", max_length=100)),
+                ("city_id", models.IntegerField(blank=True, null=True)),
+                ("district", models.CharField(blank=True, default="", max_length=100)),
+                ("district_id", models.IntegerField(blank=True, null=True)),
+                ("latitude", models.FloatField(blank=True, null=True)),
+                ("longitude", models.FloatField(blank=True, null=True)),
+                ("photos", models.JSONField(blank=True, default=list)),
+                ("category_id", models.IntegerField(blank=True, null=True)),
+                ("is_business", models.BooleanField(default=False)),
+                ("is_promoted", models.BooleanField(default=False)),
+                ("created_at_source", models.DateTimeField(blank=True, null=True)),
+                ("refreshed_at_source", models.DateTimeField(blank=True, null=True)),
+                ("valid_to_source", models.DateTimeField(blank=True, null=True)),
+                ("first_seen_at", models.DateTimeField(auto_now_add=True)),
+                ("last_seen_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'ordering': ['-last_seen_at'],
-                'indexes': [models.Index(fields=['source', 'last_seen_at'], name='listings_li_source_975b9c_idx'), models.Index(fields=['city', 'district'], name='listings_li_city_885438_idx'), models.Index(fields=['price_value'], name='listings_li_price_v_243ce7_idx')],
-                'constraints': [models.UniqueConstraint(fields=('source', 'source_id'), name='uniq_source_id')],
+                "ordering": ["-last_seen_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["source", "last_seen_at"], name="listings_li_source_975b9c_idx"
+                    ),
+                    models.Index(fields=["city", "district"], name="listings_li_city_885438_idx"),
+                    models.Index(fields=["price_value"], name="listings_li_price_v_243ce7_idx"),
+                ],
+                "constraints": [
+                    models.UniqueConstraint(fields=("source", "source_id"), name="uniq_source_id")
+                ],
             },
         ),
         migrations.CreateModel(
-            name='ScrapeRun',
+            name="ScrapeRun",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('source', models.CharField(choices=[('olx', 'OLX'), ('domria', 'Dom.ria')], max_length=16)),
-                ('url', models.URLField(max_length=500)),
-                ('pages_requested', models.IntegerField(default=1)),
-                ('pages_fetched', models.IntegerField(default=0)),
-                ('scraped_count', models.IntegerField(default=0)),
-                ('new_count', models.IntegerField(default=0)),
-                ('updated_count', models.IntegerField(default=0)),
-                ('error_count', models.IntegerField(default=0)),
-                ('status', models.CharField(choices=[('running', 'Running'), ('success', 'Success'), ('failed', 'Failed')], default='running', max_length=16)),
-                ('error_message', models.TextField(blank=True, default='')),
-                ('started_at', models.DateTimeField(auto_now_add=True)),
-                ('finished_at', models.DateTimeField(blank=True, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "source",
+                    models.CharField(
+                        choices=[("olx", "OLX"), ("domria", "Dom.ria")], max_length=16
+                    ),
+                ),
+                ("url", models.URLField(max_length=500)),
+                ("pages_requested", models.IntegerField(default=1)),
+                ("pages_fetched", models.IntegerField(default=0)),
+                ("scraped_count", models.IntegerField(default=0)),
+                ("new_count", models.IntegerField(default=0)),
+                ("updated_count", models.IntegerField(default=0)),
+                ("error_count", models.IntegerField(default=0)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("running", "Running"),
+                            ("success", "Success"),
+                            ("failed", "Failed"),
+                        ],
+                        default="running",
+                        max_length=16,
+                    ),
+                ),
+                ("error_message", models.TextField(blank=True, default="")),
+                ("started_at", models.DateTimeField(auto_now_add=True)),
+                ("finished_at", models.DateTimeField(blank=True, null=True)),
             ],
             options={
-                'ordering': ['-started_at'],
-                'indexes': [models.Index(fields=['source', 'started_at'], name='listings_sc_source_257c58_idx')],
+                "ordering": ["-started_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["source", "started_at"], name="listings_sc_source_257c58_idx"
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='ListingParam',
+            name="ListingParam",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('key', models.CharField(max_length=64)),
-                ('name', models.CharField(max_length=200)),
-                ('value', models.CharField(max_length=500)),
-                ('normalized_value', models.JSONField(blank=True, null=True)),
-                ('listing', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='params', to='listings.listing')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("key", models.CharField(max_length=64)),
+                ("name", models.CharField(max_length=200)),
+                ("value", models.CharField(max_length=500)),
+                ("normalized_value", models.JSONField(blank=True, null=True)),
+                (
+                    "listing",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="params",
+                        to="listings.listing",
+                    ),
+                ),
             ],
             options={
-                'indexes': [models.Index(fields=['listing', 'key'], name='listings_li_listing_5fc56d_idx')],
-                'unique_together': {('listing', 'key')},
+                "indexes": [
+                    models.Index(fields=["listing", "key"], name="listings_li_listing_5fc56d_idx")
+                ],
+                "unique_together": {("listing", "key")},
             },
         ),
     ]

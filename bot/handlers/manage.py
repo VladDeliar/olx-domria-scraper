@@ -6,8 +6,7 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 from asgiref.sync import sync_to_async
-
-from listings.models import Subscription, TelegramUser
+from listings.models import Subscription
 
 router = Router(name="manage")
 
@@ -16,17 +15,15 @@ router = Router(name="manage")
 def _list_subs(tg_user_id: int) -> list[str]:
     return [
         f"#{s.id} — {s}"
-        for s in Subscription.objects.filter(
-            user__tg_user_id=tg_user_id, is_active=True
-        )
+        for s in Subscription.objects.filter(user__tg_user_id=tg_user_id, is_active=True)
     ]
 
 
 @sync_to_async
 def _clear_subs(tg_user_id: int) -> int:
-    return Subscription.objects.filter(
-        user__tg_user_id=tg_user_id, is_active=True
-    ).update(is_active=False)
+    return Subscription.objects.filter(user__tg_user_id=tg_user_id, is_active=True).update(
+        is_active=False
+    )
 
 
 @router.message(Command("list"))

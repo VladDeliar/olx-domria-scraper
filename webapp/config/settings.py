@@ -100,11 +100,7 @@ def _parse_database_url(url: str) -> dict[str, object]:
     raise ValueError(f"Unsupported DATABASE_URL scheme: {scheme!r}")
 
 
-DATABASES = {
-    "default": _parse_database_url(
-        config("DATABASE_URL", default="sqlite:///db.sqlite3")
-    )
-}
+DATABASES = {"default": _parse_database_url(config("DATABASE_URL", default="sqlite:///db.sqlite3"))}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": f"django.contrib.auth.password_validation.{name}"}
