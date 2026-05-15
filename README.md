@@ -8,6 +8,20 @@ Built as a Junior–Middle Python portfolio project. Demonstrates web scraping (
 
 ---
 
+<!-- screenshots: uncomment after you add the PNGs (see docs/screenshots.md)
+## Screenshots
+
+| Listing list | Listing detail |
+|---|---|
+| ![list](docs/img/list.png) | ![detail](docs/img/detail.png) |
+
+| Dashboard | Telegram bot |
+|---|---|
+| ![dashboard](docs/img/dashboard.png) | ![bot](docs/img/telegram.png) |
+
+---
+-->
+
 ## Architecture
 
 ```mermaid
