@@ -18,15 +18,22 @@ class ListingFilter(django_filters.FilterSet):
     operation_type = django_filters.ChoiceFilter(
         # Hide the UNKNOWN choice from the dropdown — it's an internal default
         # for the rare mixed-catalog scrape, not something users pick.
-        choices=[(v, l) for v, l in Operation.choices if v != Operation.UNKNOWN],
+        choices=[(v, label) for v, label in Operation.choices if v != Operation.UNKNOWN],
         empty_label="продаж і оренда",
         label="Тип угоди",
         widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     city = django_filters.CharFilter(lookup_expr="icontains", label="Місто")
     district = django_filters.CharFilter(lookup_expr="icontains", label="Район")
-    currency = django_filters.CharFilter(
-        field_name="price_currency", lookup_expr="iexact", label="Валюта"
+    # Hard-coded set: OLX + Dom.ria never deliver anything else (USD/EUR/UAH
+    # are mapped from raw symbols in scraper/sources/domria.py:_CURRENCY_MAP;
+    # OLX returns ISO codes directly and we've only seen these three).
+    currency = django_filters.ChoiceFilter(
+        field_name="price_currency",
+        choices=[("UAH", "UAH"), ("USD", "USD"), ("EUR", "EUR")],
+        empty_label="будь-яка",
+        label="Валюта",
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     min_price = django_filters.NumberFilter(
         field_name="price_value", lookup_expr="gte", label="Ціна від"

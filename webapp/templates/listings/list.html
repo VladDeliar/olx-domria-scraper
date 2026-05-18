@@ -38,8 +38,7 @@
             <div class="row g-2 mb-3">
                 <div class="col-6">
                     <label class="form-label">Валюта</label>
-                    <input type="text" class="form-control form-control-sm" name="currency"
-                           value="{{ filter.form.currency.value|default:'' }}" placeholder="UAH">
+                    {{ filter.form.currency }}
                 </div>
                 <div class="col-6">
                     <label class="form-label">Кімнат</label>
