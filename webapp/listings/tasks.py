@@ -14,6 +14,8 @@ from listings.anomaly import check_listing, check_run
 from listings.models import ScrapeRun
 from listings.pipelines import save_listing
 from scraper.sources import domria, olx
+from scraper.sources.domria import DomRiaParseError
+from scraper.sources.olx import OlxParseError
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,9 @@ def run_scrape(source_name: str, url: str, pages: int = 1) -> dict[str, Any]:
             except (DatabaseError, ValueError, TypeError) as exc:
                 errors += 1
                 logger.warning("save failed for %s: %s", listing.source_id, exc)
-    except (DatabaseError, OSError) as exc:
+    except (DatabaseError, OSError, OlxParseError, DomRiaParseError) as exc:
+        # Includes anti-bot interstitials where the embedded JSON marker is
+        # absent from the served HTML — those manifest as parse errors here.
         run.status = ScrapeRun.Status.FAILED
         run.error_message = repr(exc)
         run.finished_at = timezone.now()

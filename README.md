@@ -101,30 +101,42 @@ flowchart LR
 
 ## Quick start
 
-### Prerequisites
+### Option A — Docker (recommended)
 
-- Python 3.11+
-- [`uv`](https://github.com/astral-sh/uv) — `winget install astral-sh.uv` or [official installer](https://astral.sh/uv/)
-- (Optional) Redis-compatible broker for scheduled scraping. On Windows: `winget install Memurai.MemuraiDeveloper`
-
-### Setup
+Spins up the full stack — web + worker + beat + bot + Postgres + Redis — in one command. Only requires Docker Desktop with virtualisation enabled.
 
 ```bash
 git clone git@github.com:VladDeliar/olx-domria-scraper.git && cd olx-domria-scraper
 cp .env.example .env                       # then edit TELEGRAM_BOT_TOKEN
-uv sync                                    # installs all deps into .venv (or `venv`)
+docker compose up --build                  # ~5 min the first time (pulls + Playwright)
+```
+
+That's it. The first start runs migrations and `collectstatic` via the `migrate` one-shot service, then web/worker/beat/bot come up against healthy Postgres + Redis.
+
+To create an admin user:
+
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+### Option B — Local Python (no Docker)
+
+Useful for dev iteration on the scraper or templates.
+
+Prerequisites:
+- Python 3.11+
+- [`uv`](https://github.com/astral-sh/uv) — `winget install astral-sh.uv`
+- Redis-compatible broker on `localhost:6379` (Windows: `winget install Memurai.MemuraiDeveloper`)
+
+```bash
+cp .env.example .env                       # edit TELEGRAM_BOT_TOKEN; DATABASE_URL stays sqlite
+uv sync
 uv run playwright install chromium         # ~180 MB, one-off
 uv run python webapp/manage.py migrate
 uv run python webapp/manage.py createsuperuser
 ```
 
-### Run (Windows; 4 separate PowerShell windows)
-
-```powershell
-.\dev.ps1                                   # spawns the four windows below
-```
-
-…or manually:
+Then on Windows run `.\dev.ps1` to spawn 4 windows, or manually:
 
 | Process | Command |
 |---|---|
@@ -132,6 +144,8 @@ uv run python webapp/manage.py createsuperuser
 | Telegram bot | `python webapp/manage.py run_bot` |
 | Celery worker | `python -m celery -A config worker --pool=solo --loglevel=INFO` |
 | Celery beat | `python -m celery -A config beat --loglevel=INFO` |
+
+(On Linux/macOS drop `--pool=solo`; prefork is fine.)
 
 ### URLs
 
@@ -142,6 +156,8 @@ uv run python webapp/manage.py createsuperuser
 
 ### One-off commands
 
+Local: `python webapp/manage.py <cmd>`. Docker: prefix with `docker compose exec web`.
+
 ```bash
 # Scrape now (synchronous, no Celery needed)
 python webapp/manage.py scrape olx    "https://www.olx.ua/uk/nedvizhimost/kvartiry/kiev/" --pages 3
@@ -149,6 +165,9 @@ python webapp/manage.py scrape domria "https://dom.ria.com/uk/arenda-kvartir/kie
 
 # Enrich detail pages via Playwright (only OLX needs it)
 python webapp/manage.py enrich --source olx --limit 10
+
+# Queue a scrape via Celery instead (Docker)
+docker compose exec web python -c "from listings.tasks import scrape_task; print(scrape_task.delay('olx', 'https://www.olx.ua/uk/nedvizhimost/kvartiry/kiev/', 1).get(timeout=60))"
 ```
 
 ### Run tests

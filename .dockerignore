@@ -1,0 +1,50 @@
+# Keep build context small + reproducible. List by category, not by file.
+
+# --- VCS / IDE ---
+.git
+.github
+.idea
+.vscode
+*.swp
+*.swo
+
+# --- Python local state ---
+__pycache__
+*.py[cod]
+.venv
+venv
+.uv-cache
+.mypy_cache
+.pytest_cache
+.ruff_cache
+htmlcov
+.coverage*
+
+# --- Local DB / data we never want copied in ---
+**/db.sqlite3
+**/db.sqlite3-journal
+data
+scraper/recon_artefacts
+celerybeat-schedule*
+celerybeat.pid
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Build / packaging artefacts ---
+build
+dist
+*.egg-info
+*.tar.gz
+
+# --- Tests output ---
+test-results
+playwright-report
+.playwright
+
+# --- Docs / repo meta we don't need inside the image ---
+docs/img
+*.md
+!README.md
