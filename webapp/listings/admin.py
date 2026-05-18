@@ -25,6 +25,7 @@ class ListingParamInline(admin.TabularInline):
 class ListingAdmin(admin.ModelAdmin):
     list_display = (
         "source",
+        "operation_type",
         "source_id",
         "title_short",
         "price_display",
@@ -36,6 +37,7 @@ class ListingAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "source",
+        "operation_type",
         "city",
         "district",
         "price_currency",

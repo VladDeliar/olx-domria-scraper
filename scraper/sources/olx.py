@@ -18,10 +18,25 @@ import requests
 from pydantic import ValidationError
 
 from scraper.http import build_session, fetch, polite_sleep
-from scraper.models import Listing, ListingParam, Location, Price, Source
+from scraper.models import Listing, ListingParam, Location, Operation, Price, Source
 from scraper.pagination import page_url
 
 _STATE_MARKER = "window.__PRERENDERED_STATE__="
+
+
+def infer_operation_from_catalog(url: str) -> Operation:
+    """OLX catalog URLs encode the operation explicitly.
+
+    `/prodazha-kvartir/`  → sale
+    `/arenda-kvartir/` or `/dolgosrochnaya-arenda-kvartir/` etc. → rent
+    Parent category `/kvartiry/<city>/` mixes both → unknown.
+    """
+    lower = url.lower()
+    if "prodazha-" in lower:
+        return Operation.SALE
+    if "arenda-" in lower or "/orenda-" in lower:
+        return Operation.RENT
+    return Operation.UNKNOWN
 
 
 class OlxParseError(Exception):
@@ -133,14 +148,18 @@ def _parse_dt(raw: str | None) -> datetime | None:
     return datetime.fromisoformat(raw)
 
 
-def parse_ad(raw: dict[str, Any]) -> Listing:
+def parse_ad(raw: dict[str, Any], operation: Operation = Operation.UNKNOWN) -> Listing:
     """Build a `Listing` from one raw ad dict.
+
+    `operation` is decided by the catalog URL (see `infer_operation_from_catalog`)
+    — OLX ad payloads don't carry that field individually.
 
     Raises `pydantic.ValidationError` if mandatory fields are missing or wrong.
     """
     return Listing(
         source=Source.OLX,
         source_id=str(raw["id"]),
+        operation_type=operation,
         url=raw["url"],
         title=raw["title"],
         description=raw.get("description"),
@@ -157,14 +176,14 @@ def parse_ad(raw: dict[str, Any]) -> Listing:
     )
 
 
-def parse_search_page(html: str) -> list[Listing]:
+def parse_search_page(html: str, operation: Operation = Operation.UNKNOWN) -> list[Listing]:
     """Extract all listings from a search-results page's HTML."""
     state = extract_state(html)
     ads = _ads_from_state(state)
     listings: list[Listing] = []
     for raw in ads:
         try:
-            listings.append(parse_ad(raw))
+            listings.append(parse_ad(raw, operation=operation))
         except (ValidationError, KeyError, TypeError, ValueError) as exc:
             ad_id = raw.get("id") if isinstance(raw, dict) else "?"
             print(f"[olx] skipped ad {ad_id}: {exc}")
@@ -177,12 +196,13 @@ def iter_listings(base_url: str, max_pages: int = 1) -> Iterator[Listing]:
     Stops early if a page returns zero listings (end of results / blocked).
     """
     session = build_session()
+    operation = infer_operation_from_catalog(base_url)
     seen_ids: set[str] = set()
     for page in range(1, max_pages + 1):
         url = page_url(base_url, page)
         print(f"[olx] page {page}: {url}")
         html = fetch_search_page(url, session=session)
-        listings = parse_search_page(html)
+        listings = parse_search_page(html, operation=operation)
         if not listings:
             print(f"[olx] page {page} empty — stopping")
             break

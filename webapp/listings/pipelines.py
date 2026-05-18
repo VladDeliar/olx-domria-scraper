@@ -23,6 +23,7 @@ def save_listing(pydantic_obj: PydanticListing) -> tuple[Listing, bool]:
     fine for our scale; if we hit perf issues later we can switch to a merge.
     """
     defaults = {
+        "operation_type": pydantic_obj.operation_type.value,
         "url": str(pydantic_obj.url),
         "title": pydantic_obj.title,
         "description": pydantic_obj.description or "",

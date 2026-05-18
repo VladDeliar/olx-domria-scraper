@@ -31,6 +31,11 @@
         <span class="badge {% if listing.source == 'olx' %}badge-source-olx{% else %}badge-source-domria{% endif %} mb-2">
             {{ listing.get_source_display }} · #{{ listing.source_id }}
         </span>
+        {% if listing.operation_type == 'sale' %}
+            <span class="badge bg-warning text-dark mb-2">{{ listing.get_operation_type_display }}</span>
+        {% elif listing.operation_type == 'rent' %}
+            <span class="badge bg-info text-dark mb-2">{{ listing.get_operation_type_display }}</span>
+        {% endif %}
         <h4>{{ listing.title }}</h4>
 
         <div class="my-3 fs-4 price">

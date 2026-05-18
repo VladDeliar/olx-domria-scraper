@@ -15,9 +15,21 @@ class Source(models.TextChoices):
     DOMRIA = "domria", "Dom.ria"
 
 
+class Operation(models.TextChoices):
+    SALE = "sale", "Продаж"
+    RENT = "rent", "Оренда"
+    UNKNOWN = "unknown", "—"
+
+
 class Listing(models.Model):
     source = models.CharField(max_length=16, choices=Source.choices)
     source_id = models.CharField(max_length=64, help_text="Native ID on the source site.")
+    operation_type = models.CharField(
+        max_length=16,
+        choices=Operation.choices,
+        default=Operation.UNKNOWN,
+        db_index=True,
+    )
     url = models.URLField(max_length=500)
     title = models.CharField(max_length=500)
     description = models.TextField(blank=True, default="")

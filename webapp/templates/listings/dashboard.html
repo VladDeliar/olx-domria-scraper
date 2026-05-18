@@ -13,6 +13,18 @@
             </div>
         </div>
     {% endfor %}
+    {% for row in by_operation %}
+        {% if row.operation_type != 'unknown' %}
+        <div class="col-md-2">
+            <div class="card text-center p-3">
+                <div class="text-muted small">
+                    {% if row.operation_type == 'sale' %}💼 Продаж{% elif row.operation_type == 'rent' %}🏠 Оренда{% else %}—{% endif %}
+                </div>
+                <div class="fs-3">{{ row.n }}</div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
     <div class="col-md-2"><div class="card text-center p-3"><div class="text-muted small">Підписок</div><div class="fs-3">{{ active_subscriptions }}</div></div></div>
     <div class="col-md-2">
         <div class="card text-center p-3 {% if alert_counts.open %}border-warning{% endif %}">

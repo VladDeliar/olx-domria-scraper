@@ -51,6 +51,9 @@ class DashboardView(TemplateView):
         ctx["by_source"] = list(
             Listing.objects.values("source").annotate(n=Count("id")).order_by("-n")
         )
+        ctx["by_operation"] = list(
+            Listing.objects.values("operation_type").annotate(n=Count("id")).order_by("-n")
+        )
         ctx["by_district"] = list(
             Listing.objects.exclude(district="")
             .values("district")

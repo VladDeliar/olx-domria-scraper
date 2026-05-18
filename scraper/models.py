@@ -20,6 +20,19 @@ class Source(StrEnum):
     DOMRIA = "domria"
 
 
+class Operation(StrEnum):
+    """Sale vs. rent — populated by the source-specific parser.
+
+    `UNKNOWN` is reserved for listings scraped from a mixed catalog URL where
+    the operation can't be inferred (e.g. OLX's parent "квартири" category
+    that lists sale and rent together).
+    """
+
+    SALE = "sale"
+    RENT = "rent"
+    UNKNOWN = "unknown"
+
+
 class Price(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -60,6 +73,7 @@ class Listing(BaseModel):
 
     source: Source
     source_id: str = Field(description="Native ID inside `source` (used for upsert).")
+    operation_type: Operation = Operation.UNKNOWN
     url: HttpUrl
     title: str
     description: str | None = None

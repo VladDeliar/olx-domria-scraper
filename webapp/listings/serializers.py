@@ -23,6 +23,7 @@ class ListingSerializer(serializers.ModelSerializer):
             "id",
             "source",
             "source_display",
+            "operation_type",
             "source_id",
             "url",
             "title",

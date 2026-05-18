@@ -143,14 +143,35 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # one scrape at a time per worker
 from celery.schedules import crontab  # noqa: E402
 
 CELERY_BEAT_SCHEDULE = {
-    "olx-kyiv-apartments-30min": {
+    # URLs are operation-specific so `operation_type` gets set correctly on
+    # every scraped row (OLX parent /kvartiry/<city>/ mixes sale + rent and
+    # leaves operation as `unknown` — we avoid it here).
+    "olx-kyiv-rent": {
         "task": "listings.scrape",
         "schedule": crontab(minute="*/30"),
-        "args": ("olx", "https://www.olx.ua/uk/nedvizhimost/kvartiry/kiev/", 1),
+        "args": (
+            "olx",
+            "https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/",
+            1,
+        ),
     },
-    "domria-kyiv-rent-30min": {
+    "olx-kyiv-sale": {
+        "task": "listings.scrape",
+        "schedule": crontab(minute="*/30"),
+        "args": (
+            "olx",
+            "https://www.olx.ua/uk/nedvizhimost/kvartiry/prodazha-kvartir/kiev/",
+            1,
+        ),
+    },
+    "domria-kyiv-rent": {
         "task": "listings.scrape",
         "schedule": crontab(minute="*/30"),
         "args": ("domria", "https://dom.ria.com/uk/arenda-kvartir/kiev/", 1),
+    },
+    "domria-kyiv-sale": {
+        "task": "listings.scrape",
+        "schedule": crontab(minute="*/30"),
+        "args": ("domria", "https://dom.ria.com/uk/prodazha-kvartir/kiev/", 1),
     },
 }

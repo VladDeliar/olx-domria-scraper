@@ -19,7 +19,7 @@ import requests
 from pydantic import ValidationError
 
 from scraper.http import build_session, fetch, polite_sleep
-from scraper.models import Listing, ListingParam, Location, Price, Source
+from scraper.models import Listing, ListingParam, Location, Operation, Price, Source
 from scraper.pagination import page_url
 
 _STATE_MARKER = "window.__INITIAL_STATE__="
@@ -32,6 +32,14 @@ _CURRENCY_MAP = {
     "грн": "UAH",
     "грн.": "UAH",
     "€": "EUR",
+}
+
+# Dom.ria's advert_type_id is a reliable per-ad operation indicator
+# (3 = довгострокова оренда, 4 = подобова оренда, 1 = продаж).
+_ADVERT_TYPE_TO_OPERATION: dict[int, Operation] = {
+    1: Operation.SALE,
+    3: Operation.RENT,
+    4: Operation.RENT,
 }
 
 # Map Dom.ria flat fields → ListingParam entries with OLX-compatible keys.
@@ -181,9 +189,14 @@ def _build_title(raw: dict[str, Any]) -> str:
 
 def parse_ad(raw: dict[str, Any]) -> Listing:
     """Build a `Listing` from one Dom.ria raw dict."""
+    advert_type_id = raw.get("advert_type_id")
+    operation = _ADVERT_TYPE_TO_OPERATION.get(
+        advert_type_id if isinstance(advert_type_id, int) else -1, Operation.UNKNOWN
+    )
     return Listing(
         source=Source.DOMRIA,
         source_id=str(raw["realty_id"]),
+        operation_type=operation,
         url=_build_url(raw["beautifulUrl"]),
         title=_build_title(raw),
         description=raw.get("description_uk"),

@@ -3,13 +3,24 @@
 from __future__ import annotations
 
 import django_filters
+from django import forms
 from django.db.models import QuerySet
 
-from listings.models import Listing, Source
+from listings.models import Listing, Operation, Source
 
 
 class ListingFilter(django_filters.FilterSet):
-    source = django_filters.ChoiceFilter(choices=Source.choices, empty_label="всі джерела")
+    source = django_filters.ChoiceFilter(
+        choices=Source.choices,
+        empty_label="всі джерела",
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
+    )
+    operation_type = django_filters.ChoiceFilter(
+        choices=Operation.choices,
+        empty_label="продаж і оренда",
+        label="Тип угоди",
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
+    )
     city = django_filters.CharFilter(lookup_expr="icontains", label="Місто")
     district = django_filters.CharFilter(lookup_expr="icontains", label="Район")
     currency = django_filters.CharFilter(
@@ -26,7 +37,15 @@ class ListingFilter(django_filters.FilterSet):
 
     class Meta:
         model = Listing
-        fields = ["source", "city", "district", "currency", "min_price", "max_price"]
+        fields = [
+            "source",
+            "operation_type",
+            "city",
+            "district",
+            "currency",
+            "min_price",
+            "max_price",
+        ]
 
     def filter_rooms(self, qs: QuerySet[Listing], name: str, value: int) -> QuerySet[Listing]:
         return qs.filter(
