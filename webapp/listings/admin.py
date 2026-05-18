@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from listings.models import (
+    GazetteerLocation,
     Listing,
     ListingParam,
     Notification,
@@ -66,6 +67,15 @@ class ListingAdmin(admin.ModelAdmin):
     @admin.display(description="Open on source")
     def open_link(self, obj: Listing) -> str:
         return format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', obj.url, obj.url)
+
+
+@admin.register(GazetteerLocation)
+class GazetteerLocationAdmin(admin.ModelAdmin):
+    list_display = ("name", "kind", "parent_path", "koatuu", "latitude", "longitude")
+    list_filter = ("kind",)
+    search_fields = ("name", "normalized", "koatuu")
+    list_per_page = 100
+    ordering = ("kind", "name")
 
 
 @admin.register(TelegramUser)
