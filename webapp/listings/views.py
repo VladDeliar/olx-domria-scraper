@@ -6,14 +6,21 @@ import json
 from datetime import timedelta
 from typing import Any
 
+from django.contrib import messages
 from django.db.models import Avg, Count, Q, Sum
 from django.db.models.functions import TruncDate
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils import timezone
+from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
 from listings.filters import ListingFilter
-from listings.locations import get_known_locations
+from listings.locations import get_known_locations, resolve_location
 from listings.models import Listing, ScrapeAlert, ScrapeRun, Source, Subscription
+from listings.scan_targets import build_scrape_targets, supported_cities
+from listings.tasks import scrape_task
 
 
 class ListingListView(ListView):
@@ -35,6 +42,68 @@ class ListingListView(ListView):
         # inside get_known_locations() — cheap per-request.
         ctx["location_suggestions"] = get_known_locations()
         return ctx
+
+
+class ScanLocationView(View):
+    """POST endpoint behind the 'Просканувати зараз' button on the list page.
+
+    Resolves the user's typed location, looks up our hand-curated city-slug
+    map, and fires `scrape_task.delay` per source URL. Dedupes against
+    ScrapeRuns started within the last 5 minutes — doubles as soft rate-limit
+    and protects us from accidentally hammering OLX/Dom.ria on impatient
+    button-mashing.
+    """
+
+    _RECENT_WINDOW = timedelta(minutes=5)
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        raw = (request.POST.get("location") or "").strip()
+        operation = (request.POST.get("operation_type") or "").strip() or None
+        list_url = reverse("listings:list")
+
+        if not raw:
+            messages.error(request, "Не вказана локація для сканування.")
+            return redirect(list_url)
+
+        canonical = resolve_location(raw)
+        if not canonical:
+            messages.error(request, f"Не розпізнав локацію «{raw}».")
+            return redirect(f"{list_url}?location={raw}")
+
+        targets = build_scrape_targets(canonical, operation=operation)
+        if not targets:
+            sample = ", ".join(supported_cities()[:8])
+            messages.warning(
+                request,
+                f"Ручне сканування для «{canonical}» поки не підтримується. "
+                f"Доступні великі міста, серед них: {sample}, …",
+            )
+            return redirect(f"{list_url}?location={canonical}")
+
+        cutoff = timezone.now() - self._RECENT_WINDOW
+        recent_urls = set(
+            ScrapeRun.objects.filter(started_at__gte=cutoff).values_list("url", flat=True)
+        )
+        queued = 0
+        for source, url in targets:
+            if url in recent_urls:
+                continue
+            scrape_task.delay(source, url, 1)
+            queued += 1
+
+        if queued:
+            messages.info(
+                request,
+                f"Сканування «{canonical}» почато ({queued} з {len(targets)} джерел). "
+                "Оновіть сторінку за ~15 секунд.",
+            )
+        else:
+            messages.info(
+                request,
+                f"«{canonical}» вже сканувалось у останні 5 хвилин — нові таски "
+                "не потрібні. Оновіть сторінку щоб побачити свіжі результати.",
+            )
+        return redirect(f"{list_url}?location={canonical}")
 
 
 class ListingDetailView(DetailView):

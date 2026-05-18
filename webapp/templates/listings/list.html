@@ -60,6 +60,23 @@
             <small class="text-muted">сторінка {{ page_obj.number }} з {{ page_obj.paginator.num_pages }}</small>
         </div>
 
+        {% if total == 0 and filter.form.location.value %}
+        <div class="alert alert-light border d-flex align-items-center justify-content-between">
+            <div>
+                Нічого не знайшли по «<b>{{ filter.form.location.value }}</b>».
+                Можна <b>просканувати OLX + Dom.ria прямо зараз</b> по цій локації:
+            </div>
+            <form method="post" action="{% url 'listings:scan' %}" class="ms-3 mb-0">
+                {% csrf_token %}
+                <input type="hidden" name="location" value="{{ filter.form.location.value }}">
+                {% if filter.form.operation_type.value %}
+                    <input type="hidden" name="operation_type" value="{{ filter.form.operation_type.value }}">
+                {% endif %}
+                <button class="btn btn-primary btn-sm">🔄 Просканувати зараз</button>
+            </form>
+        </div>
+        {% endif %}
+
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
         {% for listing in listings %}
             <div class="col">
