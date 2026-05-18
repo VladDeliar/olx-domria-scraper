@@ -1,23 +1,54 @@
-# --- Python ---
+# --- Python: bytecode + extensions ---
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-*.egg-info/
+
+# --- Packaging / distribution ---
+build/
+dist/
+sdist/
+wheels/
 *.egg
+*.egg-info/
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+*.tar.gz
+
+# --- PyInstaller ---
+*.manifest
+*.spec
+
+# --- Tests / coverage / type checkers ---
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
 .tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+coverage.xml
+*.cover
+*.py.cover
+cover/
+htmlcov/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+cython_debug/
 
 # --- Virtual envs ---
 .venv/
 venv/
 env/
 ENV/
+env.bak/
+venv.bak/
 
 # --- uv ---
 # Lockfile IS committed (uv.lock). Cache is not.
@@ -30,7 +61,6 @@ db.sqlite3
 db.sqlite3-journal
 media/
 staticfiles/
-
 # Migrations: COMMITTED. Do not ignore.
 
 # --- Environment / secrets ---
@@ -46,12 +76,13 @@ playwright-report/
 test-results/
 .playwright/
 
-# --- Scraper artefacts ---
+# --- Scraper artefacts (saved HTML/JSON dumps, scraped exports) ---
 scraper/recon_artefacts/
 data/
 
 # --- Celery ---
 celerybeat-schedule*
+celerybeat.pid
 
 # --- IDE ---
 .idea/
@@ -64,7 +95,5 @@ Thumbs.db
 # --- OS ---
 *~
 
-# --- Build artefacts ---
-build/
-dist/
-*.tar.gz
+# --- PyPI publishing ---
+.pypirc
