@@ -173,6 +173,50 @@ class Notification(models.Model):
         return f"{self.user} -> {self.listing} @ {self.sent_at:%Y-%m-%d %H:%M}"
 
 
+class GazetteerLocation(models.Model):
+    """A known Ukrainian place — independent of whether we have listings for it.
+
+    Loaded once from the HDX UNOCHA admin-boundaries snapshot (adm1 + adm2 +
+    adm4) via `manage.py load_gazetteer`. Powers the "Дніпро is a real place,
+    just no listings yet" branch of the resolver in
+    [`listings/locations.py`](listings/locations.py).
+    """
+
+    class Kind(models.TextChoices):
+        OBLAST = "oblast", "Область"
+        RAION = "raion", "Район"
+        CITY = "city", "Місто"
+        TOWN = "town", "Селище"
+        VILLAGE = "village", "Село"
+        OTHER = "other", "Інше"
+
+    name = models.CharField(max_length=200)
+    normalized = models.CharField(max_length=200, db_index=True)
+    kind = models.CharField(max_length=16, choices=Kind.choices, db_index=True)
+    parent_path = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Hierarchical chain, e.g. 'Київська обл. > Бучанський р-н'.",
+    )
+    koatuu = models.CharField(max_length=20, blank=True, default="")
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        # Same name can repeat across kinds (city + raion) and across oblasts
+        # (~50 villages named "Іванівка"); parent_path disambiguates them.
+        unique_together = [("name", "kind", "parent_path")]
+        indexes = [
+            models.Index(fields=["kind", "normalized"]),
+        ]
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        suffix = f" — {self.parent_path}" if self.parent_path else ""
+        return f"{self.name} ({self.get_kind_display()}){suffix}"
+
+
 class ScrapeAlert(models.Model):
     """A data-quality anomaly raised by run_scrape or anomaly checks.
 

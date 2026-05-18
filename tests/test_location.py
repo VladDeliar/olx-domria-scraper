@@ -85,6 +85,37 @@ def test_suggest_returns_top_n_close_matches(seed_listings):
     assert "Печерський" in suggestions
 
 
+@pytest.fixture
+def seed_gazetteer(db):
+    """Cities that have NO listings but are valid Ukrainian places."""
+    from listings.locations import normalize_location
+    from listings.models import GazetteerLocation
+
+    for name in ("Дніпро", "Тернопіль", "Чернігів"):
+        GazetteerLocation.objects.create(
+            name=name,
+            normalized=normalize_location(name),
+            kind=GazetteerLocation.Kind.CITY,
+            parent_path="",
+        )
+    invalidate_known_locations_cache()
+    yield
+    invalidate_known_locations_cache()
+
+
+@pytest.mark.django_db
+def test_resolve_falls_back_to_gazetteer(seed_gazetteer):
+    # No listings at all, but Дніпро exists in the gazetteer → resolves.
+    assert resolve_location("Дніпро") == "Дніпро"
+    assert resolve_location("дніпро") == "Дніпро"
+
+
+@pytest.mark.django_db
+def test_resolve_fuzzy_against_gazetteer(seed_gazetteer):
+    # Single missing letter in gazetteer-only name.
+    assert resolve_location("Тернопль") == "Тернопіль"
+
+
 @pytest.mark.django_db
 def test_filter_via_location_param(seed_listings):
     from django.test import Client

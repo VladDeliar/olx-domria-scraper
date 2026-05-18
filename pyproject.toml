@@ -26,6 +26,7 @@ dependencies = [
     # --- Scheduling ---
     "celery[redis]>=5.4",
     "django-celery-beat>=2.7",
+    "rapidfuzz>=3.14.5",
 ]
 
 [dependency-groups]

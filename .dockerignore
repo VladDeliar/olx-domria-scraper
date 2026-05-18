@@ -27,6 +27,8 @@ data
 scraper/recon_artefacts
 celerybeat-schedule*
 celerybeat.pid
+# Gazetteer is bind-mounted at runtime — keeps the image lean (~20 MB saved).
+gazetteer
 
 # --- Secrets ---
 .env

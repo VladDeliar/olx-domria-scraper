@@ -68,6 +68,10 @@ services:
       - "8000:8000"
     volumes:
       - staticfiles:/app/staticfiles
+      # Bind-mount the gazetteer/ folder read-only so
+      # `manage.py load_gazetteer /app/gazetteer` just works without `docker
+      # compose cp`. Folder isn't in the image (see .dockerignore).
+      - ./gazetteer:/app/gazetteer:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
