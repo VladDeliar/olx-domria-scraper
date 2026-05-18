@@ -16,7 +16,9 @@ class ListingFilter(django_filters.FilterSet):
         widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     operation_type = django_filters.ChoiceFilter(
-        choices=Operation.choices,
+        # Hide the UNKNOWN choice from the dropdown — it's an internal default
+        # for the rare mixed-catalog scrape, not something users pick.
+        choices=[(v, l) for v, l in Operation.choices if v != Operation.UNKNOWN],
         empty_label="продаж і оренда",
         label="Тип угоди",
         widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
