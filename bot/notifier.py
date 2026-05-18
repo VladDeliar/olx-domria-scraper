@@ -18,6 +18,7 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from listings.locations import normalize_location
 from listings.models import Listing, Notification, Subscription
 
 from bot.formatting import render_listing
@@ -31,10 +32,10 @@ def _matches(listing: Listing, sub: Subscription) -> bool:
     if sub.city and listing.city.lower() != sub.city.lower():
         return False
     if sub.district:
-        # OLX puts smaller towns directly in `city` with empty `district`, so
-        # match the user-typed "district" against either field.
-        want = sub.district.lower()
-        if want not in (listing.district.lower(), listing.city.lower()):
+        # location_search holds normalize_location(city + district + region) —
+        # one icontains lookup covers all three with whitespace/dash variants.
+        want = normalize_location(sub.district)
+        if want and want not in listing.location_search:
             return False
     if sub.min_price is not None or sub.max_price is not None:
         if listing.price_value is None:

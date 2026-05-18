@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.views.generic import DetailView, ListView, TemplateView
 
 from listings.filters import ListingFilter
+from listings.locations import get_known_locations
 from listings.models import Listing, ScrapeAlert, ScrapeRun, Source, Subscription
 
 
@@ -30,6 +31,9 @@ class ListingListView(ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["filter"] = self.filter
         ctx["total"] = self.filter.qs.distinct().count()
+        # Feeds the <datalist id="location-suggestions"> in list.html. Cached
+        # inside get_known_locations() — cheap per-request.
+        ctx["location_suggestions"] = get_known_locations()
         return ctx
 
 

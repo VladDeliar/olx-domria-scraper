@@ -8,6 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 from asgiref.sync import sync_to_async
+from listings.locations import resolve_location, suggest_locations
 from listings.models import Subscription, TelegramUser
 
 router = Router(name="subscribe")
@@ -15,6 +16,7 @@ router = Router(name="subscribe")
 
 class SubscribeStates(StatesGroup):
     district = State()
+    confirm_location = State()
     max_price = State()
     rooms = State()
 
@@ -59,15 +61,81 @@ async def cmd_subscribe_start(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(SubscribeStates.district, F.text)
-async def step_district(message: Message, state: FSMContext) -> None:
-    text = (message.text or "").strip()
-    district = "" if _parse_skip(text) else text
-    await state.update_data(district=district)
+async def _advance_to_price(message: Message, state: FSMContext) -> None:
     await state.set_state(SubscribeStates.max_price)
     await message.answer(
         "2/3 💵 Макс ціна? Формат: <code>30000 UAH</code> або <code>800 USD</code>. «-» щоб пропустити."
     )
+
+
+@router.message(SubscribeStates.district, F.text)
+async def step_district(message: Message, state: FSMContext) -> None:
+    text = (message.text or "").strip()
+    if _parse_skip(text):
+        await state.update_data(district="")
+        await _advance_to_price(message, state)
+        return
+
+    canonical = await sync_to_async(resolve_location, thread_sensitive=True)(text)
+    if canonical:
+        await state.update_data(district=canonical)
+        if canonical.lower() != text.lower():
+            await message.answer(f"📍 Знайшов: <b>{canonical}</b>")
+        await _advance_to_price(message, state)
+        return
+
+    suggestions = await sync_to_async(suggest_locations, thread_sensitive=True)(text)
+    if suggestions:
+        await state.update_data(_pending_location=text, _suggestions=suggestions)
+        await state.set_state(SubscribeStates.confirm_location)
+        body = "\n".join(f"{i + 1}) {name}" for i, name in enumerate(suggestions))
+        await message.answer(
+            "Не знайшов точно. Можливо ти мав на увазі:\n"
+            f"{body}\n\n"
+            "Введи <b>номер</b>, точну назву ще раз, або «-» щоб без локації."
+        )
+        return
+
+    # No match and no suggestions — keep raw text but warn.
+    await state.update_data(district=text)
+    await message.answer(
+        f"⚠️ Локації «{text}» поки немає в базі. Підписку створю — як з'являться "
+        "відповідні оголошення, отримаєш повідомлення."
+    )
+    await _advance_to_price(message, state)
+
+
+@router.message(SubscribeStates.confirm_location, F.text)
+async def step_confirm_location(message: Message, state: FSMContext) -> None:
+    text = (message.text or "").strip()
+    data = await state.get_data()
+    suggestions: list[str] = data.get("_suggestions") or []
+
+    if _parse_skip(text):
+        await state.update_data(district="")
+        await _advance_to_price(message, state)
+        return
+
+    # Numeric pick?
+    if text.isdigit() and 1 <= int(text) <= len(suggestions):
+        chosen = suggestions[int(text) - 1]
+        await state.update_data(district=chosen)
+        await message.answer(f"📍 Обрано: <b>{chosen}</b>")
+        await _advance_to_price(message, state)
+        return
+
+    # User retyped — re-run resolver.
+    canonical = await sync_to_async(resolve_location, thread_sensitive=True)(text)
+    if canonical:
+        await state.update_data(district=canonical)
+        await message.answer(f"📍 Знайшов: <b>{canonical}</b>")
+        await _advance_to_price(message, state)
+        return
+
+    # Still no match — accept raw text, warn, move on.
+    await state.update_data(district=text)
+    await message.answer(f"⚠️ Локації «{text}» немає в базі. Зберігаю як є.")
+    await _advance_to_price(message, state)
 
 
 @router.message(SubscribeStates.max_price, F.text)

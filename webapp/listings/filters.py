@@ -6,6 +6,7 @@ import django_filters
 from django import forms
 from django.db.models import QuerySet
 
+from listings.locations import normalize_location, resolve_location
 from listings.models import Listing, Operation, Source
 
 
@@ -23,8 +24,18 @@ class ListingFilter(django_filters.FilterSet):
         label="Тип угоди",
         widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
-    city = django_filters.CharFilter(lookup_expr="icontains", label="Місто")
-    district = django_filters.CharFilter(lookup_expr="icontains", label="Район")
+    location = django_filters.CharFilter(
+        method="filter_location",
+        label="Локація",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control form-control-sm",
+                "list": "location-suggestions",  # ties to <datalist> in list.html
+                "placeholder": "Київ, Печерський, Львів…",
+                "autocomplete": "off",
+            }
+        ),
+    )
     # Hard-coded set: OLX + Dom.ria never deliver anything else (USD/EUR/UAH
     # are mapped from raw symbols in scraper/sources/domria.py:_CURRENCY_MAP;
     # OLX returns ISO codes directly and we've only seen these three).
@@ -49,12 +60,18 @@ class ListingFilter(django_filters.FilterSet):
         fields = [
             "source",
             "operation_type",
-            "city",
-            "district",
             "currency",
             "min_price",
             "max_price",
         ]
+
+    def filter_location(self, qs: QuerySet[Listing], name: str, value: str) -> QuerySet[Listing]:
+        """Resolve typos/whitespace, then icontains on the prebuilt search column."""
+        canonical = resolve_location(value)
+        target = normalize_location(canonical or value)
+        if not target:
+            return qs
+        return qs.filter(location_search__icontains=target)
 
     def filter_rooms(self, qs: QuerySet[Listing], name: str, value: int) -> QuerySet[Listing]:
         return qs.filter(

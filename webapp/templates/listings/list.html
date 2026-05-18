@@ -19,9 +19,12 @@
                 {{ filter.form.source }}
             </div>
             <div class="mb-2">
-                <label class="form-label">Район / місто</label>
-                <input type="text" class="form-control form-control-sm" name="district"
-                       value="{{ filter.form.district.value|default:'' }}" placeholder="Печерський">
+                <label class="form-label">Локація</label>
+                {{ filter.form.location }}
+                <datalist id="location-suggestions">
+                    {% for name in location_suggestions %}<option value="{{ name }}">{% endfor %}
+                </datalist>
+                <small class="text-muted">Місто, район чи область. Помилки в написанні допустимі.</small>
             </div>
             <div class="row g-2 mb-2">
                 <div class="col-6">

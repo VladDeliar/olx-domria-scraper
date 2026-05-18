@@ -48,6 +48,10 @@ class Listing(models.Model):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
 
+    # Concatenated normalize_location(city + district + region). Persisted +
+    # indexed so the "Локація" filter is a single fast icontains lookup.
+    location_search = models.CharField(max_length=300, blank=True, default="", db_index=True)
+
     photos = models.JSONField(default=list, blank=True)
 
     category_id = models.IntegerField(null=True, blank=True)

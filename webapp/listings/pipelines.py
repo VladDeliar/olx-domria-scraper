@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from django.db import transaction
 
+from listings.locations import invalidate_known_locations_cache, normalize_location
 from listings.models import Listing, ListingParam
 
 # Pydantic schema lives in the scraper package (added to sys.path in settings.py).
@@ -39,6 +40,15 @@ def save_listing(pydantic_obj: PydanticListing) -> tuple[Listing, bool]:
         "district_id": pydantic_obj.location.district_id,
         "latitude": pydantic_obj.location.latitude,
         "longitude": pydantic_obj.location.longitude,
+        "location_search": " ".join(
+            part
+            for part in (
+                normalize_location(pydantic_obj.location.city),
+                normalize_location(pydantic_obj.location.district),
+                normalize_location(pydantic_obj.location.region),
+            )
+            if part
+        ),
         "photos": [str(p) for p in pydantic_obj.photos],
         "category_id": pydantic_obj.category_id,
         "is_business": pydantic_obj.is_business,
@@ -53,6 +63,11 @@ def save_listing(pydantic_obj: PydanticListing) -> tuple[Listing, bool]:
         source_id=pydantic_obj.source_id,
         defaults=defaults,
     )
+    if created:
+        # New city/district may have entered the known-names set; invalidate
+        # the 5-min cache so autocomplete + fuzzy resolver pick it up right
+        # away rather than at the next TTL boundary.
+        invalidate_known_locations_cache()
 
     listing.params.all().delete()
     ListingParam.objects.bulk_create(

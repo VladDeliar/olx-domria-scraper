@@ -16,6 +16,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-radar}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # Expose 5432 to host only (127.0.0.1) so DBeaver / TablePlus / psql
+    # can connect locally. Bind to all interfaces here would surface a
+    # dev DB to your network — don't.
+    ports:
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-radar} -d ${POSTGRES_DB:-radar}"]
       interval: 5s
