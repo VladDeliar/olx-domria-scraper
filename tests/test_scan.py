@@ -65,16 +65,59 @@ def test_scan_respects_operation_filter(patch_delay, patch_resolve):
 
 
 @pytest.mark.django_db
-def test_scan_unknown_city_warns(patch_delay, patch_resolve):
-    # Resolver finds the place (it's in the gazetteer) but we have no
-    # slug for it — typical for small villages.
-    patch_resolve({"андріївка": "Андріївка"})
-    response = Client().post(reverse("listings:scan"), {"location": "Андріївка"})
+def test_scan_unknown_with_no_gazetteer_row_warns(patch_delay, patch_resolve):
+    """Resolver returns canonical, but no GazetteerLocation row exists →
+    no parent oblast to fall back to → 'unsupported' warning."""
+    patch_resolve({"мерефа": "Мерефа"})
+    response = Client().post(reverse("listings:scan"), {"location": "Мерефа"})
 
     assert response.status_code == 302
     assert patch_delay == []
     msgs = [m.message for m in get_messages(response.wsgi_request)]
-    assert any("не підтримується" in m for m in msgs)
+    assert any("не вдається просканувати" in m for m in msgs)
+
+
+@pytest.mark.django_db
+def test_scan_falls_back_to_oblast_for_village(patch_delay, patch_resolve):
+    """Village resolves, has gazetteer row with parent oblast → scan oblast URLs."""
+    from listings.models import GazetteerLocation
+
+    GazetteerLocation.objects.create(
+        name="Підгайчики",
+        normalized="підгайчики",
+        kind="village",
+        parent_path="Тернопільська > Чортківський",
+    )
+    patch_resolve({"підгайчики": "Підгайчики"})
+
+    response = Client().post(reverse("listings:scan"), {"location": "Підгайчики"})
+    assert response.status_code == 302
+    # 4 oblast-level targets queued (Тернопільська: olx=ter, domria=obl-ternopolskaya).
+    assert len(patch_delay) == 4
+    urls = {c[1] for c in patch_delay}
+    assert any("/ter/" in u for u in urls)
+    assert any("obl-ternopolskaya" in u for u in urls)
+    msgs = [m.message for m in get_messages(response.wsgi_request)]
+    assert any("мала громада" in m and "Тернопільська" in m for m in msgs)
+
+
+@pytest.mark.django_db
+def test_scan_unsupported_when_parent_oblast_missing(patch_delay, patch_resolve):
+    """Defensive — gazetteer row exists but its first parent isn't in LOCATION_SLUGS."""
+    from listings.models import GazetteerLocation
+
+    GazetteerLocation.objects.create(
+        name="EdgePlace",
+        normalized="edgeplace",
+        kind="village",
+        parent_path="UnknownOblast > UnknownRaion",
+    )
+    patch_resolve({"edgeplace": "EdgePlace"})
+
+    response = Client().post(reverse("listings:scan"), {"location": "EdgePlace"})
+    assert patch_delay == []
+    msgs = [m.message for m in get_messages(response.wsgi_request)]
+    assert any("не вдається просканувати" in m for m in msgs)
 
 
 @pytest.mark.django_db

@@ -19,7 +19,7 @@ from django.views.generic import DetailView, ListView, TemplateView
 from listings.filters import ListingFilter
 from listings.locations import get_known_locations, resolve_location
 from listings.models import Listing, ScrapeAlert, ScrapeRun, Source, Subscription
-from listings.scan_targets import build_scrape_targets, supported_cities
+from listings.scan_targets import find_scan_strategy, supported_cities
 from listings.tasks import scrape_task
 
 
@@ -70,12 +70,13 @@ class ScanLocationView(View):
             messages.error(request, f"Не розпізнав локацію «{raw}».")
             return redirect(f"{list_url}?location={raw}")
 
-        targets = build_scrape_targets(canonical, operation=operation)
-        if not targets:
+        kind, scan_key, targets = find_scan_strategy(canonical, operation=operation)
+        if kind == "unsupported":
             sample = ", ".join(supported_cities()[:8])
             messages.warning(
                 request,
-                f"Ручне сканування для «{canonical}» поки не підтримується. "
+                f"«{canonical}» поки не вдається просканувати — нема ні прямої "
+                f"сторінки на джерелах, ні відомої батьківської області. "
                 f"Доступні великі міста, серед них: {sample}, …",
             )
             return redirect(f"{list_url}?location={canonical}")
@@ -91,17 +92,25 @@ class ScanLocationView(View):
             scrape_task.delay(source, url, 1)
             queued += 1
 
-        if queued:
+        if not queued:
             messages.info(
                 request,
-                f"Сканування «{canonical}» почато ({queued} з {len(targets)} джерел). "
-                "Оновіть сторінку за ~15 секунд.",
+                f"«{scan_key}» вже сканувалось у останні 5 хвилин — нові таски "
+                "не потрібні. Оновіть сторінку щоб побачити свіжі результати.",
+            )
+        elif kind == "oblast":
+            messages.info(
+                request,
+                f"«{canonical}» — мала громада, окремої сторінки на джерелах нема. "
+                f"Сканую всю {scan_key} обл. ({queued} з {len(targets)} джерел, "
+                f"це ~30 секунд). «{canonical}» з'явиться у списку, якщо для нього "
+                "хоч одне оголошення опубліковане.",
             )
         else:
             messages.info(
                 request,
-                f"«{canonical}» вже сканувалось у останні 5 хвилин — нові таски "
-                "не потрібні. Оновіть сторінку щоб побачити свіжі результати.",
+                f"Сканування «{canonical}» почато ({queued} з {len(targets)} джерел). "
+                "Оновіть сторінку за ~15 секунд.",
             )
         return redirect(f"{list_url}?location={canonical}")
 
