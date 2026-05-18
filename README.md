@@ -4,7 +4,7 @@ End-to-end real-estate aggregator: scrapes listings from **OLX** and **Dom.ria**
 
 Built as a Junior–Middle Python portfolio project. Demonstrates web scraping (static + JS-rendered), data validation, ORM modelling, async bots, scheduled jobs, REST API, anomaly detection, tests, and CI.
 
-[![CI](https://github.com/USER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/USER/REPO/actions)
+[![CI](https://github.com/VladDeliar/olx-domria-scraper/actions/workflows/ci.yml/badge.svg)](https://github.com/VladDeliar/olx-domria-scraper/actions)
 
 ---
 
@@ -110,7 +110,7 @@ flowchart LR
 ### Setup
 
 ```bash
-git clone https://github.com/USER/REPO realestate-radar && cd realestate-radar
+git clone git@github.com:VladDeliar/olx-domria-scraper.git && cd olx-domria-scraper
 cp .env.example .env                       # then edit TELEGRAM_BOT_TOKEN
 uv sync                                    # installs all deps into .venv (or `venv`)
 uv run playwright install chromium         # ~180 MB, one-off
