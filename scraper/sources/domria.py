@@ -23,7 +23,10 @@ from scraper.models import Listing, ListingParam, Location, Operation, Price, So
 from scraper.pagination import page_url
 
 _STATE_MARKER = "window.__INITIAL_STATE__="
-_SITE_ORIGIN = "https://dom.ria.com"
+# Locale prefix required: Dom.ria's `beautifulUrl` field is locale-less
+# (e.g. `/realty-prodaja-...`), but direct GETs to the bare path return 404.
+# All our scrape entry points use the Ukrainian locale, so we hard-code `/uk`.
+_SITE_ORIGIN = "https://dom.ria.com/uk"
 _CDN_ORIGIN = "https://cdn.riastatic.com/photos"
 _KYIV_TZ = ZoneInfo("Europe/Kyiv")
 

@@ -26,7 +26,9 @@ def test_parse_search_page_one_listing(domria_html, domria_realty_factory):
 
 def test_parse_ad_builds_url_and_localises_dt(domria_realty_factory):
     listing = parse_ad(domria_realty_factory())
-    assert str(listing.url).startswith("https://dom.ria.com/")
+    # Must include `/uk/` locale prefix — without it Dom.ria returns 404 even
+    # though their JSON state ships URLs without locale.
+    assert str(listing.url).startswith("https://dom.ria.com/uk/realty-")
     # publishing_date "2026-05-11 10:17:56" gets Europe/Kyiv tzinfo attached.
     assert listing.created_at is not None
     assert listing.created_at.tzinfo is not None
