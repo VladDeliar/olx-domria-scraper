@@ -80,6 +80,9 @@ test-results/
 scraper/recon_artefacts/
 data/
 
+# --- Reference data (download once from HDX; see docs/gazetteer.md) ---
+gazetteer/
+
 # --- Celery ---
 celerybeat-schedule*
 celerybeat.pid

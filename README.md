@@ -119,13 +119,7 @@ To create an admin user:
 docker compose exec web python manage.py createsuperuser
 ```
 
-To load the Ukrainian gazetteer (~30k oblasts + raions + settlements from HDX UNOCHA) so the location filter resolves real places even before any listing for them is scraped:
-
-```bash
-docker compose exec web python manage.py load_gazetteer /app/gazetteer
-```
-
-The `gazetteer/` folder ships in the repo (~20 MB of CSVs). It's bind-mounted into the web container, not baked into the image.
+To load the Ukrainian gazetteer (~30k oblasts + raions + settlements from HDX UNOCHA) so the location filter resolves real places even before any listing for them is scraped — download the CSVs from HDX and run the loader. See [`docs/gazetteer.md`](docs/gazetteer.md) for the exact steps.
 
 ### Option B — Local Python (no Docker)
 
