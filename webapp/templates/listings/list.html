@@ -58,6 +58,14 @@
                 </div>
             </div>
             <div class="mb-2">
+                <label class="form-label">Опубліковано на джерелі</label>
+                {{ filter.form.published_within }}
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Додано в нашу базу</label>
+                {{ filter.form.added_within }}
+            </div>
+            <div class="mb-2">
                 <label class="form-label">Сортування</label>
                 <select name="sort" class="form-select form-select-sm">
                     <option value="newest" {% if sort == 'newest' %}selected{% endif %}>спочатку новіші</option>

@@ -91,6 +91,46 @@ def test_list_sorts_by_price_desc(priced_listings):
     assert order == ["Дорога", "Середня", "Дешева", "Без ціни"]  # null price still last
 
 
+def test_filter_added_within(two_listings):
+    """`first_seen_at` is auto_now_add — age one row via a direct UPDATE."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from listings.models import Listing
+
+    old, fresh = two_listings
+    Listing.objects.filter(pk=old.pk).update(first_seen_at=timezone.now() - timedelta(days=8))
+    body = Client().get(reverse("listings:list") + "?added_within=7d").content.decode()
+    assert fresh.title in body
+    assert old.title not in body
+
+
+def test_filter_published_within(two_listings):
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from listings.models import Listing
+
+    recent, stale = two_listings
+    Listing.objects.filter(pk=recent.pk).update(
+        created_at_source=timezone.now() - timedelta(hours=2)
+    )
+    Listing.objects.filter(pk=stale.pk).update(
+        created_at_source=timezone.now() - timedelta(days=10)
+    )
+    body = Client().get(reverse("listings:list") + "?published_within=1d").content.decode()
+    assert recent.title in body
+    assert stale.title not in body
+
+
+def test_filter_published_within_excludes_null_dates(two_listings):
+    """A listing with no source publish date never shows in a windowed result."""
+    # two_listings leaves created_at_source=None on both.
+    body = Client().get(reverse("listings:list") + "?published_within=30d").content.decode()
+    for listing in two_listings:
+        assert listing.title not in body
+
+
 def test_detail_view_renders(two_listings):
     a, _ = two_listings
     response = Client().get(reverse("listings:detail", args=[a.pk]))
