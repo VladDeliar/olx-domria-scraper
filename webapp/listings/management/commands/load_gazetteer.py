@@ -28,11 +28,17 @@ from listings.locations import invalidate_known_locations_cache, normalize_locat
 from listings.models import GazetteerLocation
 
 # ADM4_TYPE_UA → our Kind enum value.
+# NOTE: the HDX file's UA type labels for the two settlement tiers are
+# swapped relative to their meaning — rows for actual villages carry
+# "Селища міського типу (СМТ)" and rows for actual СМТ carry "Сільські
+# населені пункти (СНП)". Verified by row counts after load (cities 461,
+# СМТ ~880, villages ~28k vs. the official Ukrainian totals). The mapping
+# below is intentionally crossed so our `kind` column ends up correct.
 _TYPE_MAP: dict[str, str] = {
     "Міста": GazetteerLocation.Kind.CITY,
-    "Mіста": GazetteerLocation.Kind.CITY,  # the data has a typo here (latin M)
-    "Селища міського типу (СМТ)": GazetteerLocation.Kind.TOWN,
-    "Сільські населені пункти (СНП)": GazetteerLocation.Kind.VILLAGE,
+    "Mіста": GazetteerLocation.Kind.CITY,  # the data also has a latin-M typo
+    "Селища міського типу (СМТ)": GazetteerLocation.Kind.VILLAGE,
+    "Сільські населені пункти (СНП)": GazetteerLocation.Kind.TOWN,
 }
 
 

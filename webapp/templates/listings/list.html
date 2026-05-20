@@ -20,11 +20,18 @@
             </div>
             <div class="mb-2">
                 <label class="form-label">Локація</label>
+                <select id="oblast-select" class="form-select form-select-sm mb-1">
+                    <option value="">— область —</option>
+                    {% for o in oblasts %}<option value="{{ o }}">{{ o }}</option>{% endfor %}
+                </select>
+                <select id="city-select" class="form-select form-select-sm mb-1" disabled>
+                    <option value="">— місто —</option>
+                </select>
                 {{ filter.form.location }}
                 <datalist id="location-suggestions">
                     {% for name in location_suggestions %}<option value="{{ name }}">{% endfor %}
                 </datalist>
-                <small class="text-muted">Місто, район чи область. Помилки в написанні допустимі.</small>
+                <small class="text-muted">Оберіть зі списків або введіть вручну (помилки допустимі).</small>
             </div>
             <div class="row g-2 mb-2">
                 <div class="col-6">
@@ -134,4 +141,52 @@
         {% endif %}
     </section>
 </div>
+
+<script>
+// Область → Місто cascade. The two <select>s have no `name` — they're pure
+// input helpers that write into the real #id_location text field, so the
+// form keeps submitting a single `location` param and works without JS.
+(function () {
+    const oblastSel = document.getElementById("oblast-select");
+    const citySel = document.getElementById("city-select");
+    const locationInput = document.getElementById("id_location");
+    if (!oblastSel || !citySel || !locationInput) return;
+
+    const settlementsUrl = "{% url 'listings:settlements_json' %}";
+
+    function resetCity(placeholder) {
+        citySel.innerHTML = '<option value="">' + placeholder + "</option>";
+    }
+
+    oblastSel.addEventListener("change", async function () {
+        const oblast = oblastSel.value;
+        locationInput.value = oblast;            // oblast-only filter is valid
+        if (!oblast) {
+            resetCity("— місто —");
+            citySel.disabled = true;
+            return;
+        }
+        resetCity("завантаження…");
+        citySel.disabled = true;
+        try {
+            const resp = await fetch(settlementsUrl + "?oblast=" + encodeURIComponent(oblast));
+            const data = await resp.json();
+            resetCity("— місто (вся область) —");
+            for (const name of data.settlements) {
+                const opt = document.createElement("option");
+                opt.value = name;
+                opt.textContent = name;
+                citySel.appendChild(opt);
+            }
+            citySel.disabled = false;
+        } catch (e) {
+            resetCity("— помилка, введіть вручну —");
+        }
+    });
+
+    citySel.addEventListener("change", function () {
+        if (citySel.value) locationInput.value = citySel.value;
+    });
+})();
+</script>
 {% endblock %}

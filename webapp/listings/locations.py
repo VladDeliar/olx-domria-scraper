@@ -69,6 +69,54 @@ def get_gazetteer_locations() -> list[str]:
     return names
 
 
+_OBLASTS_CACHE_KEY = "locations:oblasts:v1"
+_SETTLEMENTS_CACHE_KEY = "locations:settlements:{oblast}:v1"
+
+
+def get_oblasts() -> list[str]:
+    """All oblast names (kind='oblast'), sorted. ~27 rows. Cached 24 h."""
+    cached = cache.get(_OBLASTS_CACHE_KEY)
+    if cached is not None:
+        return cached
+    from listings.models import GazetteerLocation
+
+    names = sorted(
+        GazetteerLocation.objects.filter(kind=GazetteerLocation.Kind.OBLAST)
+        .values_list("name", flat=True)
+        .distinct()
+    )
+    cache.set(_OBLASTS_CACHE_KEY, names, _GAZETTEER_CACHE_TTL)
+    return names
+
+
+def get_oblast_settlements(oblast: str) -> list[str]:
+    """City names inside `oblast`, sorted. ~15-25 per oblast.
+
+    Only `kind="city"` — towns (СМТ) and villages are deliberately excluded:
+    there are hundreds per oblast, unusable in a <select>. The free-text
+    location input + fuzzy resolver still reaches every settlement.
+    """
+    oblast = (oblast or "").strip()
+    if not oblast:
+        return []
+    key = _SETTLEMENTS_CACHE_KEY.format(oblast=oblast)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+    from listings.models import GazetteerLocation
+
+    names = sorted(
+        GazetteerLocation.objects.filter(
+            kind=GazetteerLocation.Kind.CITY,
+            parent_path__startswith=oblast,
+        )
+        .values_list("name", flat=True)
+        .distinct()
+    )
+    cache.set(key, names, _GAZETTEER_CACHE_TTL)
+    return names
+
+
 def _get_in_data_map() -> dict[str, str]:
     cached = cache.get(_DATA_MAP_CACHE_KEY)
     if cached is not None:
@@ -139,11 +187,21 @@ def suggest_locations(user_input: str, n: int = 3, cutoff: float = 60) -> list[s
 
 
 def invalidate_known_locations_cache() -> None:
-    """Clear both tiers (lists + pre-normalised maps)."""
-    for key in (
+    """Clear both resolver tiers + the oblast/settlement picker caches.
+
+    Called after `load_gazetteer` and after each new listing is saved.
+    """
+    keys = [
         _DATA_CACHE_KEY,
         _DATA_MAP_CACHE_KEY,
         _GAZETTEER_CACHE_KEY,
         _GAZETTEER_MAP_CACHE_KEY,
-    ):
+        _OBLASTS_CACHE_KEY,
+    ]
+    # Settlement caches are keyed per oblast — drop them for whatever oblasts
+    # are currently cached/known before the oblast list itself is cleared.
+    cached_oblasts = cache.get(_OBLASTS_CACHE_KEY)
+    if cached_oblasts:
+        keys += [_SETTLEMENTS_CACHE_KEY.format(oblast=o) for o in cached_oblasts]
+    for key in keys:
         cache.delete(key)

@@ -9,7 +9,7 @@ from typing import Any
 from django.contrib import messages
 from django.db.models import Avg, Count, Q, Sum
 from django.db.models.functions import TruncDate
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -17,7 +17,12 @@ from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
 from listings.filters import ListingFilter
-from listings.locations import get_known_locations, resolve_location
+from listings.locations import (
+    get_known_locations,
+    get_oblast_settlements,
+    get_oblasts,
+    resolve_location,
+)
 from listings.models import Listing, ScrapeAlert, ScrapeRun, Source, Subscription
 from listings.scan_targets import find_scan_strategy, supported_cities
 from listings.tasks import scrape_task
@@ -41,7 +46,19 @@ class ListingListView(ListView):
         # Feeds the <datalist id="location-suggestions"> in list.html. Cached
         # inside get_known_locations() — cheap per-request.
         ctx["location_suggestions"] = get_known_locations()
+        # Feeds the "Область" cascade <select>. ~27 names, cached 24 h.
+        ctx["oblasts"] = get_oblasts()
         return ctx
+
+
+def oblast_settlements_json(request: HttpRequest) -> JsonResponse:
+    """Cascade endpoint: cities + towns inside `?oblast=…` as JSON.
+
+    Powers the Область → Місто dropdown on the list page. Plain JsonResponse
+    — no DRF, no serialisation; the payload is just a list of strings.
+    """
+    oblast = request.GET.get("oblast", "")
+    return JsonResponse({"settlements": get_oblast_settlements(oblast)})
 
 
 class ScanLocationView(View):

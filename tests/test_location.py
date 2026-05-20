@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from listings.locations import (
+    get_oblast_settlements,
     invalidate_known_locations_cache,
     normalize_location,
     resolve_location,
@@ -125,3 +126,71 @@ def test_filter_via_location_param(seed_listings):
     body = response.content.decode("utf-8")
     assert "Тест Івано-Франківськ" in body
     assert "Тест Київ" not in body
+
+
+@pytest.fixture
+def seed_gazetteer_oblast(db):
+    """One oblast with 2 cities, 1 town, 1 village inside it."""
+    from listings.models import GazetteerLocation
+
+    GazetteerLocation.objects.create(
+        name="Тернопільська", normalized="тернопільська", kind="oblast", parent_path=""
+    )
+    GazetteerLocation.objects.create(
+        name="Тернопіль",
+        normalized="тернопіль",
+        kind="city",
+        parent_path="Тернопільська > Тернопільський",
+    )
+    GazetteerLocation.objects.create(
+        name="Чортків",
+        normalized="чортків",
+        kind="city",
+        parent_path="Тернопільська > Чортківський",
+    )
+    GazetteerLocation.objects.create(
+        name="Заводське",
+        normalized="заводське",
+        kind="town",
+        parent_path="Тернопільська > Чортківський",
+    )
+    GazetteerLocation.objects.create(
+        name="Підгайчики",
+        normalized="підгайчики",
+        kind="village",
+        parent_path="Тернопільська > Чортківський",
+    )
+    invalidate_known_locations_cache()
+    yield
+    invalidate_known_locations_cache()
+
+
+@pytest.mark.django_db
+def test_get_oblast_settlements_returns_cities_only(seed_gazetteer_oblast):
+    names = get_oblast_settlements("Тернопільська")
+    assert "Тернопіль" in names
+    assert "Чортків" in names
+    # Towns (СМТ) and villages excluded — hundreds per oblast, unusable in a
+    # <select>; the free-text input reaches them instead.
+    assert "Заводське" not in names
+    assert "Підгайчики" not in names
+
+
+@pytest.mark.django_db
+def test_oblast_settlements_json_returns_cities(seed_gazetteer_oblast):
+    from django.test import Client
+
+    response = Client().get("/locations/settlements/?oblast=Тернопільська")
+    assert response.status_code == 200
+    data = response.json()
+    assert "Тернопіль" in data["settlements"]
+    assert "Підгайчики" not in data["settlements"]
+
+
+@pytest.mark.django_db
+def test_oblast_settlements_json_unknown_oblast(seed_gazetteer_oblast):
+    from django.test import Client
+
+    response = Client().get("/locations/settlements/?oblast=Атлантида")
+    assert response.status_code == 200
+    assert response.json() == {"settlements": []}
