@@ -6,8 +6,9 @@ import json
 from datetime import timedelta
 from typing import Any
 
+from celery.result import AsyncResult
 from django.contrib import messages
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Count, F, Q, Sum
 from django.db.models.functions import TruncDate
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
@@ -27,6 +28,13 @@ from listings.models import Listing, ScrapeAlert, ScrapeRun, Source, Subscriptio
 from listings.scan_targets import find_scan_strategy, supported_cities
 from listings.tasks import scrape_task
 
+_SORTS: dict[str, tuple[Any, ...]] = {
+    "newest": ("-last_seen_at",),
+    # nulls_last so price-less listings never crowd the top of a price sort.
+    "price_asc": (F("price_value").asc(nulls_last=True), "-last_seen_at"),
+    "price_desc": (F("price_value").desc(nulls_last=True), "-last_seen_at"),
+}
+
 
 class ListingListView(ListView):
     model = Listing
@@ -35,14 +43,17 @@ class ListingListView(ListView):
     paginate_by = 24
 
     def get_queryset(self):
-        qs = Listing.objects.all().prefetch_related("params").order_by("-last_seen_at")
+        qs = Listing.objects.all().prefetch_related("params")
         self.filter = ListingFilter(self.request.GET, queryset=qs)
-        return self.filter.qs.distinct()
+        sort = self.request.GET.get("sort", "newest")
+        order = _SORTS.get(sort, _SORTS["newest"])
+        return self.filter.qs.distinct().order_by(*order)
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         ctx = super().get_context_data(**kwargs)
         ctx["filter"] = self.filter
         ctx["total"] = self.filter.qs.distinct().count()
+        ctx["sort"] = self.request.GET.get("sort", "newest")
         # Feeds the <datalist id="location-suggestions"> in list.html. Cached
         # inside get_known_locations() — cheap per-request.
         ctx["location_suggestions"] = get_known_locations()
@@ -102,12 +113,14 @@ class ScanLocationView(View):
         recent_urls = set(
             ScrapeRun.objects.filter(started_at__gte=cutoff).values_list("url", flat=True)
         )
-        queued = 0
+        task_ids: list[str] = []
         for source, url in targets:
             if url in recent_urls:
                 continue
-            scrape_task.delay(source, url, 1)
-            queued += 1
+            task_ids.append(scrape_task.delay(source, url, 1).id)
+        queued = len(task_ids)
+        # Stash IDs so the list page can poll /scan/status/ for the "+N" notice.
+        request.session["scan_tasks"] = task_ids
 
         if not queued:
             messages.info(
@@ -126,10 +139,41 @@ class ScanLocationView(View):
         else:
             messages.info(
                 request,
-                f"Сканування «{canonical}» почато ({queued} з {len(targets)} джерел). "
-                "Оновіть сторінку за ~15 секунд.",
+                f"Сканування «{canonical}» почато ({queued} з {len(targets)} джерел).",
             )
-        return redirect(f"{list_url}?location={canonical}")
+        suffix = "&scan=running" if queued else ""
+        return redirect(f"{list_url}?location={canonical}{suffix}")
+
+
+def scan_status(request: HttpRequest) -> JsonResponse:
+    """Poll endpoint for the list page's scan-progress banner.
+
+    Reads the Celery task IDs stashed in the session by ScanLocationView and
+    reports aggregate progress. Once every task is ready, sums the
+    {new, updated, errors} counts each `scrape_task` returns and consumes the
+    session key so the "+N" notice fires exactly once.
+    """
+    ids = request.session.get("scan_tasks") or []
+    if not ids:
+        return JsonResponse({"active": False})
+
+    results = [AsyncResult(tid) for tid in ids]
+    done = [r for r in results if r.ready()]
+    if len(done) < len(results):
+        return JsonResponse(
+            {"active": True, "finished": False, "done": len(done), "total": len(results)}
+        )
+
+    new = updated = errors = 0
+    for r in results:
+        if r.successful() and isinstance(r.result, dict):
+            new += r.result.get("new", 0)
+            updated += r.result.get("updated", 0)
+            errors += r.result.get("errors", 0)
+    request.session.pop("scan_tasks", None)
+    return JsonResponse(
+        {"active": True, "finished": True, "new": new, "updated": updated, "errors": errors}
+    )
 
 
 class ListingDetailView(DetailView):

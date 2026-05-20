@@ -138,6 +138,71 @@ def test_scan_dedupes_recent_runs(patch_delay, patch_resolve):
 
 
 @pytest.mark.django_db
+def test_scan_stores_task_ids_in_session(patch_delay, patch_resolve):
+    patch_resolve({"дніпро": "Дніпро"})
+    client = Client()
+    client.post(reverse("listings:scan"), {"location": "Дніпро"})
+    assert len(client.session["scan_tasks"]) == 4  # 4 queued tasks' IDs
+
+
+@pytest.mark.django_db
+def test_scan_status_no_active():
+    response = Client().get(reverse("listings:scan_status"))
+    assert response.json() == {"active": False}
+
+
+@pytest.mark.django_db
+def test_scan_status_finished(monkeypatch):
+    class FakeResult:
+        def __init__(self, tid):
+            self.id = tid
+
+        def ready(self):
+            return True
+
+        def successful(self):
+            return True
+
+        result = {"new": 7, "updated": 3, "errors": 0}
+
+    monkeypatch.setattr("listings.views.AsyncResult", FakeResult)
+
+    client = Client()
+    session = client.session
+    session["scan_tasks"] = ["t1", "t2"]
+    session.save()
+
+    data = client.get(reverse("listings:scan_status")).json()
+    assert data["finished"] is True
+    assert data["new"] == 14  # 7 × 2 tasks
+    assert data["updated"] == 6
+    # Session key consumed so the "+N" notice fires exactly once.
+    assert "scan_tasks" not in client.session
+
+
+@pytest.mark.django_db
+def test_scan_status_in_progress(monkeypatch):
+    class FakeResult:
+        def __init__(self, tid):
+            self.id = tid
+
+        def ready(self):
+            return self.id == "done"
+
+    monkeypatch.setattr("listings.views.AsyncResult", FakeResult)
+
+    client = Client()
+    session = client.session
+    session["scan_tasks"] = ["done", "pending"]
+    session.save()
+
+    data = client.get(reverse("listings:scan_status")).json()
+    assert data == {"active": True, "finished": False, "done": 1, "total": 2}
+    # Not consumed while still running.
+    assert client.session["scan_tasks"] == ["done", "pending"]
+
+
+@pytest.mark.django_db
 def test_scan_unresolvable_location_errors(patch_delay, patch_resolve):
     patch_resolve({})  # nothing resolves
     response = Client().post(reverse("listings:scan"), {"location": "Атлантида"})

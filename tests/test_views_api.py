@@ -53,6 +53,44 @@ def test_list_view_filters_by_currency(two_listings):
     assert "Печерська квартира" not in body
 
 
+@pytest.fixture
+def priced_listings():
+    """Three priced listings + one with no price, to test sort + nulls-last."""
+    from listings.models import Listing
+
+    for sid, title, price in [
+        ("P1", "Дешева", Decimal("10000")),
+        ("P2", "Середня", Decimal("50000")),
+        ("P3", "Дорога", Decimal("90000")),
+        ("P4", "Без ціни", None),
+    ]:
+        Listing.objects.create(
+            source="olx",
+            source_id=sid,
+            url=f"https://x/{sid}",
+            title=title,
+            price_value=price,
+            price_currency="UAH" if price else "",
+            city="Київ",
+        )
+
+
+def _order_in_body(body: str, titles: list[str]) -> list[str]:
+    return sorted(titles, key=lambda t: body.index(t))
+
+
+def test_list_sorts_by_price_asc(priced_listings):
+    body = Client().get(reverse("listings:list") + "?sort=price_asc").content.decode()
+    order = _order_in_body(body, ["Дешева", "Середня", "Дорога", "Без ціни"])
+    assert order == ["Дешева", "Середня", "Дорога", "Без ціни"]  # null price last
+
+
+def test_list_sorts_by_price_desc(priced_listings):
+    body = Client().get(reverse("listings:list") + "?sort=price_desc").content.decode()
+    order = _order_in_body(body, ["Дешева", "Середня", "Дорога", "Без ціни"])
+    assert order == ["Дорога", "Середня", "Дешева", "Без ціни"]  # null price still last
+
+
 def test_detail_view_renders(two_listings):
     a, _ = two_listings
     response = Client().get(reverse("listings:detail", args=[a.pk]))

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load listing_extras %}
 {% block title %}{{ listing.title|truncatechars:50 }}{% endblock %}
 {% block content %}
 <a href="{% url 'listings:list' %}" class="text-decoration-none small">← до списку</a>
@@ -40,7 +41,7 @@
 
         <div class="my-3 fs-4 price">
             {% if listing.price_is_free %}безкоштовно
-            {% elif listing.price_value %}{{ listing.price_value|floatformat:0 }} {{ listing.price_currency }}
+            {% elif listing.price_value %}{{ listing.price_value|thousands }} {{ listing.price_currency }}
             {% else %}ціна не вказана{% endif %}
         </div>
 
